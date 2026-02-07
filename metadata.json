@@ -1,0 +1,7 @@
+{
+  "name": "Finanza360",
+  "description": "Ecosistema Financiero Inteligente con IA Gemini para gestión multimoneda y segmentación de capitales.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

@@ -1,20 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 
+const TABLE_NAME = 'finance_user_state';
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
 
 function getSupabase() {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error('Faltan variables SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY');
+    throw new Error(
+      'Faltan variables de entorno: SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY (o SUPABASE_SECRET_KEY).'
+    );
   }
 
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false }
+    auth: { persistSession: false },
   });
 }
 
 function parseBody(req) {
-  if (!req.body) return {};
+  if (!req?.body) return {};
   if (typeof req.body === 'string') {
     try {
       return JSON.parse(req.body);
@@ -25,8 +30,16 @@ function parseBody(req) {
   return req.body;
 }
 
+function cleanString(value) {
+  return String(value ?? '').trim();
+}
+
+function isValidPayload(payload) {
+  return !!payload && typeof payload === 'object' && !Array.isArray(payload);
+}
+
 export default async function handler(req, res) {
-  // Permitir CORS básico (opcional, útil para pruebas)
+  // CORS (útil para pruebas manuales)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -38,15 +51,28 @@ export default async function handler(req, res) {
   try {
     const supabase = getSupabase();
 
+    // Health check opcional: /api/state?health=1
+    if (req.method === 'GET' && req.query?.health === '1') {
+      return res.status(200).json({
+        ok: true,
+        service: 'state-api',
+        env: {
+          hasSupabaseUrl: !!SUPABASE_URL,
+          hasServiceRoleKey: !!SUPABASE_SERVICE_ROLE_KEY,
+        },
+      });
+    }
+
+    // GET: leer estado por userId
     if (req.method === 'GET') {
-      const userId = String(req.query.userId || '').trim();
+      const userId = cleanString(req.query?.userId);
       if (!userId) {
         return res.status(400).json({ ok: false, error: 'Falta userId' });
       }
 
       const { data, error } = await supabase
-        .from('finance_user_state')
-        .select('payload, updated_at')
+        .from(TABLE_NAME)
+        .select('user_id, payload, updated_at')
         .eq('user_id', userId)
         .maybeSingle();
 
@@ -58,30 +84,32 @@ export default async function handler(req, res) {
         ok: true,
         found: !!data,
         payload: data?.payload ?? null,
-        updated_at: data?.updated_at ?? null
+        updated_at: data?.updated_at ?? null,
       });
     }
 
+    // POST: guardar/actualizar estado por userId
     if (req.method === 'POST') {
       const body = parseBody(req);
-      const userId = String(body.userId || '').trim();
-      const payload = body.payload;
+
+      const userId = cleanString(body?.userId);
+      const payload = body?.payload;
 
       if (!userId) {
         return res.status(400).json({ ok: false, error: 'Falta userId' });
       }
 
-      if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
+      if (!isValidPayload(payload)) {
         return res.status(400).json({ ok: false, error: 'payload inválido' });
       }
 
       const { error } = await supabase
-        .from('finance_user_state')
+        .from(TABLE_NAME)
         .upsert(
           {
             user_id: userId,
             payload,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           },
           { onConflict: 'user_id' }
         );

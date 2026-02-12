@@ -31,6 +31,8 @@ type PersistedFinanceData = {
   incomeCategories: string[];
 };
 
+type CloudStatus = 'idle' | 'saving' | 'saved' | 'error';
+
 const EMPTY_DATA: PersistedFinanceData = {
   accounts: [],
   transactions: [],
@@ -58,15 +60,42 @@ const normalizeData = (input: any): PersistedFinanceData => ({
   incomeCategories: Array.isArray(input?.incomeCategories) ? input.incomeCategories : DEFAULT_INCOME_CATEGORIES
 });
 
-/**
- * Clave estable para nube:
- * - Prioridad: email (igual en distintos navegadores/dispositivos)
- * - Fallback: id (compatibilidad)
- */
-const getCloudUserKey = (user: User): string => {
-  const email = (user.email || '').trim().toLowerCase();
+const normalizeEmail = (email?: string | null): string => {
+  const raw = String(email || '').trim().toLowerCase();
+  if (!raw || !raw.includes('@')) return '';
+
+  const [localPart, domain] = raw.split('@');
+  if (!localPart || !domain) return raw;
+
+  // Canonicalización Gmail: quita +tag y puntos en local part
+  if (domain === 'gmail.com' || domain === 'googlemail.com') {
+    const localNoPlus = localPart.split('+')[0];
+    const localNoDots = localNoPlus.replace(/\./g, '');
+    return `${localNoDots}@gmail.com`;
+  }
+
+  return raw;
+};
+
+const getPrimaryCloudKey = (user: User): string => {
+  const email = normalizeEmail(user.email);
   if (email) return `mail:${email}`;
-  return `id:${user.id}`;
+  return `id:${String(user.id || '').trim()}`; // fallback extremo
+};
+
+const getLegacyCloudKeys = (user: User): string[] => {
+  const rawEmail = String(user.email || '').trim().toLowerCase();
+  const id = String(user.id || '').trim();
+
+  return Array.from(
+    new Set(
+      [
+        rawEmail ? `mail:${rawEmail}` : '', // email sin canonicalizar (legacy)
+        id ? `id:${id}` : '',               // id con prefijo
+        id,                                 // id legacy puro
+      ].filter(Boolean)
+    )
+  );
 };
 
 const readLocalUserData = (userId: string): PersistedFinanceData => {
@@ -101,6 +130,7 @@ const App: React.FC = () => {
 
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState<CloudStatus>('idle');
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadedUserIdRef = useRef<string | null>(null);
@@ -168,7 +198,7 @@ const App: React.FC = () => {
     if (currentUser) fetchRate();
   }, [currentUser, fetchRate]);
 
-  // Cargar datos del usuario (nube primero, local de respaldo)
+  // Cargar datos del usuario: nube primero (clave canónica), local de respaldo
   useEffect(() => {
     let cancelled = false;
 
@@ -176,34 +206,41 @@ const App: React.FC = () => {
       if (!currentUser) {
         loadedUserIdRef.current = null;
         setIsDataReady(false);
+        setCloudStatus('idle');
         applyData(EMPTY_DATA);
         return;
       }
 
       setIsLoadingCloud(true);
       setIsDataReady(false);
+      setCloudStatus('idle');
 
       try {
         const localData = readLocalUserData(currentUser.id);
         let finalData = localData;
 
         try {
-          const cloudPrimaryKey = getCloudUserKey(currentUser);
+          const primaryKey = getPrimaryCloudKey(currentUser);
+          const candidates = [primaryKey, ...getLegacyCloudKeys(currentUser)];
 
-          // 1) clave nueva por email (estable)
-          let cloudData = await loadFromCloud(cloudPrimaryKey);
+          let cloudData: PersistedFinanceData | null = null;
+          let foundKey: string | null = null;
 
-          // 2) fallback a esquema anterior por id (migración)
-          if (!cloudData) {
-            cloudData = await loadFromCloud(currentUser.id);
+          for (const key of candidates) {
+            const d = await loadFromCloud(key);
+            if (d) {
+              cloudData = d;
+              foundKey = key;
+              break;
+            }
           }
 
           if (cloudData) {
             finalData = cloudData;
 
-            // Si vino por id, migramos silenciosamente a clave por email
-            if (cloudPrimaryKey !== currentUser.id) {
-              saveToCloud(cloudPrimaryKey, cloudData).catch(() => {});
+            // Migración automática al key canónico si vino por legacy
+            if (foundKey && foundKey !== primaryKey) {
+              saveToCloud(primaryKey, cloudData).catch(() => {});
             }
           }
         } catch (e) {
@@ -229,7 +266,7 @@ const App: React.FC = () => {
     };
   }, [currentUser, applyData, loadFromCloud, saveToCloud]);
 
-  // Guardar cambios (local inmediato + nube con debounce)
+  // Guardado: local inmediato + nube con debounce SOLO clave canónica
   useEffect(() => {
     if (!currentUser) return;
     if (!isDataReady) return;
@@ -245,23 +282,36 @@ const App: React.FC = () => {
       incomeCategories
     };
 
-    // 1) Local inmediato (por id local actual)
     localStorage.setItem(`f360_data_${localUserId}`, JSON.stringify(data));
 
-    // 2) Nube con debounce (por clave estable email)
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
-    saveTimerRef.current = setTimeout(() => {
-      const cloudUserKey = getCloudUserKey(currentUser);
-      saveToCloud(cloudUserKey, data).catch((e) => {
-        console.warn('No se pudo guardar en nube (queda guardado local):', e);
-      });
+    saveTimerRef.current = setTimeout(async () => {
+      try {
+        setCloudStatus('saving');
+        const primaryKey = getPrimaryCloudKey(currentUser);
+        await saveToCloud(primaryKey, data);
+        setCloudStatus('saved');
+      } catch (e) {
+        console.warn('No se pudo guardar en nube (se guardó local):', e);
+        setCloudStatus('error');
+      }
     }, 900);
 
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [accounts, transactions, investments, budgets, expenseCategories, incomeCategories, currentUser, isDataReady, saveToCloud]);
+  }, [
+    accounts,
+    transactions,
+    investments,
+    budgets,
+    expenseCategories,
+    incomeCategories,
+    currentUser,
+    isDataReady,
+    saveToCloud
+  ]);
 
   const requestDelete = (title: string, message: string, onConfirm: () => void) => {
     setConfirmModal({ isOpen: true, title, message, onConfirm });
@@ -372,7 +422,6 @@ const App: React.FC = () => {
     localStorage.removeItem('f360_user');
     setCurrentUser(null);
 
-    // Limpieza visual inmediata
     setAccounts([]);
     setTransactions([]);
     setInvestments([]);
@@ -381,6 +430,7 @@ const App: React.FC = () => {
     setIncomeCategories(DEFAULT_INCOME_CATEGORIES);
 
     setIsDataReady(false);
+    setCloudStatus('idle');
     loadedUserIdRef.current = null;
 
     setActiveView('dashboard');
@@ -476,10 +526,28 @@ const App: React.FC = () => {
       </aside>
 
       <main className="flex-1 overflow-y-auto px-6 py-8 md:p-14 view-container">
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-3">
           {isLoadingCloud && (
             <div className="bg-white border border-slate-100 rounded-2xl px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400">
               Sincronizando datos con la nube...
+            </div>
+          )}
+
+          {!isLoadingCloud && cloudStatus === 'saving' && (
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-xs font-bold uppercase tracking-wider text-blue-600">
+              Guardando en la nube...
+            </div>
+          )}
+
+          {!isLoadingCloud && cloudStatus === 'saved' && (
+            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-3 text-xs font-bold uppercase tracking-wider text-emerald-600">
+              Datos sincronizados en la nube
+            </div>
+          )}
+
+          {!isLoadingCloud && cloudStatus === 'error' && (
+            <div className="bg-rose-50 border border-rose-100 rounded-2xl px-4 py-3 text-xs font-bold uppercase tracking-wider text-rose-600">
+              No se pudo sincronizar en nube (se guardó localmente)
             </div>
           )}
         </div>

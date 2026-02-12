@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, Send, X, MessageSquare, Loader2 } from 'lucide-react';
 import { FinanceAIService } from '../services/geminiService';
@@ -30,18 +29,37 @@ export const AIChat: React.FC<Props> = ({ transactions, accounts }) => {
   }, [messages, isTyping]);
 
   const handleSend = async () => {
-    if (!input.trim() || isTyping) return;
+    const userMsg = input.trim();
+    if (!userMsg || isTyping) return;
 
-    const userMsg = input;
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setIsTyping(true);
 
-    const service = new FinanceAIService();
-    const aiResponse = await service.chatWithData(userMsg, { transactions, accounts });
+    try {
+      const service = new FinanceAIService();
 
-    setMessages(prev => [...prev, { role: 'ai', content: aiResponse || 'No pude procesar eso.' }]);
-    setIsTyping(false);
+      // Contexto reducido para evitar prompts demasiado grandes
+      const compactContext = {
+        transactions: transactions.slice(0, 120),
+        accounts: accounts.slice(0, 30),
+      };
+
+      const aiResponse = await service.chatWithData(userMsg, compactContext);
+
+      setMessages(prev => [
+        ...prev,
+        { role: 'ai', content: aiResponse || 'No pude procesar eso.' }
+      ]);
+    } catch (error) {
+      console.error('Error en AIChat:', error);
+      setMessages(prev => [
+        ...prev,
+        { role: 'ai', content: 'Hubo un problema temporal con la IA. Intenta de nuevo en unos segundos.' }
+      ]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   return (
@@ -63,15 +81,18 @@ export const AIChat: React.FC<Props> = ({ transactions, accounts }) => {
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[80%] p-4 rounded-2xl text-sm font-medium ${
-                  m.role === 'user' 
-                  ? 'bg-blue-600 text-white rounded-tr-none' 
-                  : 'bg-slate-100 text-slate-800 rounded-tl-none'
-                }`}>
+                <div
+                  className={`max-w-[80%] p-4 rounded-2xl text-sm font-medium whitespace-pre-wrap ${
+                    m.role === 'user'
+                      ? 'bg-blue-600 text-white rounded-tr-none'
+                      : 'bg-slate-100 text-slate-800 rounded-tl-none'
+                  }`}
+                >
                   {m.content}
                 </div>
               </div>
             ))}
+
             {isTyping && (
               <div className="flex justify-start">
                 <div className="bg-slate-100 p-4 rounded-2xl rounded-tl-none flex items-center gap-2">
@@ -84,16 +105,21 @@ export const AIChat: React.FC<Props> = ({ transactions, accounts }) => {
 
           <div className="p-4 bg-slate-50 border-t border-slate-100">
             <div className="flex gap-2">
-              <input 
+              <input
                 className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Escribe tu duda financiera..."
                 value={input}
                 onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSend()}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
               />
-              <button 
+              <button
                 onClick={handleSend}
-                disabled={isTyping}
+                disabled={isTyping || !input.trim()}
                 className="bg-blue-600 text-white p-2.5 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
                 <Send size={18} />
@@ -103,7 +129,7 @@ export const AIChat: React.FC<Props> = ({ transactions, accounts }) => {
         </div>
       )}
 
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className={`w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 hover:scale-110 active:scale-95 ${
           isOpen ? 'bg-slate-800 rotate-90' : 'bg-blue-600'

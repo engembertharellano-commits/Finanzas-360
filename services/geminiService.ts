@@ -1,5 +1,3 @@
-
-import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, Budget, Investment, BankAccount } from "../types";
 
 export interface ExchangeRateResponse {
@@ -12,72 +10,113 @@ export interface AssetLookupResponse {
   price: number;
 }
 
+type AnalyzeResponse = {
+  summary: string;
+  warnings: string[];
+  opportunities: string[];
+  score: number;
+};
+
+type AnyObj = Record<string, unknown>;
+
 export class FinanceAIService {
-  private getClient() {
-    return new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
+  private async requestAI(body: AnyObj): Promise<AnyObj> {
+    const resp = await fetch("/api/ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    const json = (await resp.json().catch(() => ({}))) as AnyObj;
+
+    if (!resp.ok || json?.ok === false) {
+      const msg =
+        typeof json?.error === "string" && json.error.trim()
+          ? json.error
+          : `Error IA (${resp.status})`;
+      throw new Error(msg);
+    }
+
+    return json;
+  }
+
+  private parseJsonFromText<T>(input: unknown): T | null {
+    if (typeof input !== "string") return null;
+    let text = input.trim();
+    if (!text) return null;
+
+    // Limpia markdown fences
+    text = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```$/i, "").trim();
+
+    // Intento directo
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      // Extrae primer objeto JSON encontrado
+      const start = text.indexOf("{");
+      const end = text.lastIndexOf("}");
+      if (start !== -1 && end !== -1 && end > start) {
+        const candidate = text.slice(start, end + 1);
+        try {
+          return JSON.parse(candidate) as T;
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    }
   }
 
   async getExchangeRate(): Promise<ExchangeRateResponse> {
-    if (!process.env.API_KEY) return { rate: 45.50 };
-    
     try {
-      const ai = this.getClient();
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: "Busca la tasa de cambio oficial vigente del Banco Central de Venezuela (BCV) USD a VES para el día de hoy. Si no hay datos de hoy, busca la más reciente. Devuelve el resultado en formato JSON con la propiedad 'rate' como número.",
-        config: {
-          tools: [{ googleSearch: {} }],
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              rate: { type: Type.NUMBER, description: "La tasa de cambio numérica" }
-            },
-            required: ["rate"]
-          },
-          thinkingConfig: { thinkingBudget: 0 }
-        }
-      });
-
-      const data = JSON.parse(response.text);
-      const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-      const sourceUrl = groundingChunks?.[0]?.web?.uri;
+      const data = await this.requestAI({ task: "exchange_rate" });
+      const rate = Number(data?.rate);
 
       return {
-        rate: data.rate || 45.50,
-        sourceUrl
+        rate: Number.isFinite(rate) && rate > 0 ? rate : 45.5,
+        sourceUrl: typeof data?.sourceUrl === "string" ? data.sourceUrl : undefined,
       };
     } catch (error) {
       console.error("AI Rate Sync Error:", error);
-      return { rate: 45.50 };
+      return { rate: 45.5 };
     }
   }
 
   async lookupAssetInfo(ticker: string): Promise<AssetLookupResponse | null> {
-    if (!process.env.API_KEY) return null;
-
     try {
-      const ai = this.getClient();
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Busca el nombre oficial y el precio de mercado actual de la acción o criptomoneda con ticker: ${ticker}. Responde en formato JSON.`,
-        config: {
-          tools: [{ googleSearch: {} }],
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING, description: "Nombre completo descriptivo del activo" },
-              price: { type: Type.NUMBER, description: "Precio actual de mercado en USD" }
-            },
-            required: ["name", "price"]
-          },
-          thinkingConfig: { thinkingBudget: 0 }
-        }
+      const prompt = `
+Devuelve SOLO JSON válido (sin markdown) con esta estructura:
+{"name":"string","price":number}
+
+Busca el activo con ticker: ${ticker}
+- "name": nombre oficial/descriptivo.
+- "price": precio actual en USD.
+      `.trim();
+
+      const data = await this.requestAI({
+        task: "lookup_asset",
+        prompt,
       });
-      
-      const text = response.text;
-      return text ? JSON.parse(text) : null;
+
+      // Si backend devuelve texto
+      const parsedFromText = this.parseJsonFromText<AssetLookupResponse>(data?.text);
+
+      // O si backend devuelve campos directos
+      const direct: AssetLookupResponse | null =
+        typeof data?.name === "string" && Number.isFinite(Number(data?.price))
+          ? { name: String(data.name), price: Number(data.price) }
+          : null;
+
+      const result = direct ?? parsedFromText;
+      if (!result) return null;
+
+      const price = Number(result.price);
+      if (!Number.isFinite(price)) return null;
+
+      return {
+        name: String(result.name || ticker).trim(),
+        price,
+      };
     } catch (error) {
       console.error("Error buscando activo:", error);
       return null;
@@ -85,95 +124,118 @@ export class FinanceAIService {
   }
 
   async analyzeFinances(
-    transactions: Transaction[], 
-    budgets: Budget[], 
+    transactions: Transaction[],
+    budgets: Budget[],
     investments: Investment[]
-  ) {
-    if (!process.env.API_KEY) {
-      return { 
-        summary: "⚠️ Inteligencia Artificial no conectada. Por favor, configura tu API_KEY en el panel de control.", 
-        warnings: ["Análisis limitado por falta de conexión."], 
-        opportunities: [], 
-        score: 0 
-      };
-    }
-
-    const personalTransactions = transactions.filter(t => !t.isWorkRelated && !t.isThirdParty);
-    
-    const prompt = `
-      Actúa como un asesor financiero experto. Analiza la situación PERSONAL del usuario:
-      
-      DATOS PERSONALES (Usa esto para el Score y el Resumen):
-      - Transacciones Personales: ${JSON.stringify(personalTransactions.slice(0, 50))}
-      - Presupuestos: ${JSON.stringify(budgets)}
-      - Inversiones: ${JSON.stringify(investments)}
-
-      REGLA DE ORO:
-      Ignora cualquier flujo que no sea gasto personal o ingreso propio. Los fondos de trabajo y de terceros (custodia) NO son parte de la salud financiera personal del usuario, son pasivos temporales.
-
-      Genera un informe detallado en JSON con:
-      1. 'summary': Resumen de su economía real.
-      2. 'warnings': Alertas de gastos personales excesivos.
-      3. 'opportunities': Consejos de inversión o ahorro.
-      4. 'score': Salud financiera de 0 a 100 basada SOLO en lo personal.
-    `;
+  ): Promise<AnalyzeResponse> {
+    const fallback: AnalyzeResponse = {
+      summary: "No se pudo generar el análisis en este momento.",
+      warnings: ["Error de conexión con la IA"],
+      opportunities: ["Intenta de nuevo más tarde"],
+      score: 0,
+    };
 
     try {
-      const ai = this.getClient();
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              summary: { type: Type.STRING },
-              warnings: { type: Type.ARRAY, items: { type: Type.STRING } },
-              opportunities: { type: Type.ARRAY, items: { type: Type.STRING } },
-              score: { type: Type.NUMBER }
-            },
-            required: ["summary", "warnings", "opportunities", "score"]
-          },
-          thinkingConfig: { thinkingBudget: 0 }
-        }
+      const personalTransactions = transactions.filter(
+        (t) => !t.isWorkRelated && !t.isThirdParty
+      );
+
+      const prompt = `
+Actúa como un asesor financiero experto y responde SOLO en JSON válido con esta forma:
+{
+  "summary": "string",
+  "warnings": ["string"],
+  "opportunities": ["string"],
+  "score": number
+}
+
+REGLAS:
+- Analiza SOLO finanzas personales.
+- Ignora dinero laboral (pote de trabajo) y custodia (dinero de terceros).
+- Score de 0 a 100.
+
+DATOS:
+- Transacciones personales (máx 50): ${JSON.stringify(personalTransactions.slice(0, 50))}
+- Presupuestos: ${JSON.stringify(budgets)}
+- Inversiones: ${JSON.stringify(investments)}
+      `.trim();
+
+      const data = await this.requestAI({
+        task: "analyze_finances",
+        prompt,
       });
-      const text = response.text;
-      if (!text) throw new Error("Respuesta vacía de la IA");
-      return JSON.parse(text);
+
+      const parsed = this.parseJsonFromText<AnalyzeResponse>(data?.text);
+
+      if (parsed) {
+        return {
+          summary: typeof parsed.summary === "string" ? parsed.summary : fallback.summary,
+          warnings: Array.isArray(parsed.warnings) ? parsed.warnings.map(String) : fallback.warnings,
+          opportunities: Array.isArray(parsed.opportunities)
+            ? parsed.opportunities.map(String)
+            : fallback.opportunities,
+          score: Number.isFinite(Number(parsed.score)) ? Number(parsed.score) : 0,
+        };
+      }
+
+      // Si algún día backend devuelve campos directos
+      const direct: AnalyzeResponse = {
+        summary:
+          typeof data?.summary === "string" ? String(data.summary) : fallback.summary,
+        warnings:
+          Array.isArray(data?.warnings) ? (data.warnings as unknown[]).map(String) : fallback.warnings,
+        opportunities:
+          Array.isArray(data?.opportunities)
+            ? (data.opportunities as unknown[]).map(String)
+            : fallback.opportunities,
+        score: Number.isFinite(Number(data?.score)) ? Number(data?.score) : 0,
+      };
+
+      return direct;
     } catch (error) {
       console.error("Error en análisis financiero IA:", error);
-      return { 
-        summary: "No se pudo generar el análisis en este momento.", 
-        warnings: ["Error de conexión con la IA"], 
-        opportunities: ["Intenta de nuevo más tarde"], 
-        score: 0 
-      };
+      return fallback;
     }
   }
 
-  async chatWithData(message: string, context: { transactions: Transaction[], accounts: BankAccount[] }) {
-    if (!process.env.API_KEY) return "Lo siento, la función de chat requiere una API_KEY configurada en el servidor.";
-
-    const systemInstruction = `
-      Eres el asistente financiero personal de Finanza360. 
-      Instrucciones Críticas:
-      1. Tienes tres cubetas: PERSONAL, LABORAL (Pote Trabajo) y CUSTODIA (Dinero de otros).
-      2. No mezcles los totales. Si el usuario pregunta "cuánto tengo", aclara si te refieres a su dinero neto personal o al saldo total en bancos (que incluye dinero de otros).
-      3. Responde de forma muy concisa en Español.
-    `;
-
+  async chatWithData(
+    message: string,
+    context: { transactions: Transaction[]; accounts: BankAccount[] }
+  ): Promise<string> {
     try {
-      const ai = this.getClient();
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: message,
-        config: {
-          systemInstruction,
-          thinkingConfig: { thinkingBudget: 0 }
-        }
+      const systemInstruction = `
+Eres el asistente financiero personal de Finanza360.
+Instrucciones críticas:
+1) Hay tres cubetas: PERSONAL, LABORAL (Pote Trabajo) y CUSTODIA (Dinero de terceros).
+2) No mezcles totales.
+3) Responde en español, claro y muy conciso.
+      `.trim();
+
+      // Reducimos volumen para no saturar tokens
+      const compactContext = {
+        transactions: context.transactions.slice(0, 60),
+        accounts: context.accounts.slice(0, 20),
+      };
+
+      const prompt = `
+${systemInstruction}
+
+Pregunta del usuario:
+${message}
+
+Contexto de datos:
+${JSON.stringify(compactContext)}
+      `.trim();
+
+      const data = await this.requestAI({
+        task: "chat_with_data",
+        prompt,
       });
-      return response.text;
+
+      const text =
+        typeof data?.text === "string" ? data.text.trim() : "";
+
+      return text || "No pude responder en este momento.";
     } catch (error) {
       console.error("Error en chat IA:", error);
       return "Hubo un error en el chat.";

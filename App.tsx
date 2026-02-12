@@ -58,6 +58,17 @@ const normalizeData = (input: any): PersistedFinanceData => ({
   incomeCategories: Array.isArray(input?.incomeCategories) ? input.incomeCategories : DEFAULT_INCOME_CATEGORIES
 });
 
+/**
+ * Clave estable para nube:
+ * - Prioridad: email (igual en distintos navegadores/dispositivos)
+ * - Fallback: id (compatibilidad)
+ */
+const getCloudUserKey = (user: User): string => {
+  const email = (user.email || '').trim().toLowerCase();
+  if (email) return `mail:${email}`;
+  return `id:${user.id}`;
+};
+
 const readLocalUserData = (userId: string): PersistedFinanceData => {
   const raw = localStorage.getItem(`f360_data_${userId}`);
   return normalizeData(safeParse(raw, EMPTY_DATA));
@@ -130,8 +141,8 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const loadFromCloud = useCallback(async (userId: string): Promise<PersistedFinanceData | null> => {
-    const resp = await fetch(`/api/state?userId=${encodeURIComponent(userId)}`);
+  const loadFromCloud = useCallback(async (userKey: string): Promise<PersistedFinanceData | null> => {
+    const resp = await fetch(`/api/state?userId=${encodeURIComponent(userKey)}`);
     const json = await resp.json().catch(() => null);
 
     if (!resp.ok || !json?.ok) return null;
@@ -140,11 +151,11 @@ const App: React.FC = () => {
     return normalizeData(json.payload);
   }, []);
 
-  const saveToCloud = useCallback(async (userId: string, payload: PersistedFinanceData): Promise<void> => {
+  const saveToCloud = useCallback(async (userKey: string, payload: PersistedFinanceData): Promise<void> => {
     const resp = await fetch('/api/state', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, payload })
+      body: JSON.stringify({ userId: userKey, payload })
     });
 
     if (!resp.ok) {
@@ -177,8 +188,24 @@ const App: React.FC = () => {
         let finalData = localData;
 
         try {
-          const cloudData = await loadFromCloud(currentUser.id);
-          if (cloudData) finalData = cloudData;
+          const cloudPrimaryKey = getCloudUserKey(currentUser);
+
+          // 1) clave nueva por email (estable)
+          let cloudData = await loadFromCloud(cloudPrimaryKey);
+
+          // 2) fallback a esquema anterior por id (migración)
+          if (!cloudData) {
+            cloudData = await loadFromCloud(currentUser.id);
+          }
+
+          if (cloudData) {
+            finalData = cloudData;
+
+            // Si vino por id, migramos silenciosamente a clave por email
+            if (cloudPrimaryKey !== currentUser.id) {
+              saveToCloud(cloudPrimaryKey, cloudData).catch(() => {});
+            }
+          }
         } catch (e) {
           console.warn('No se pudo leer nube, usando local:', e);
         }
@@ -200,7 +227,7 @@ const App: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [currentUser, applyData, loadFromCloud]);
+  }, [currentUser, applyData, loadFromCloud, saveToCloud]);
 
   // Guardar cambios (local inmediato + nube con debounce)
   useEffect(() => {
@@ -208,7 +235,7 @@ const App: React.FC = () => {
     if (!isDataReady) return;
     if (loadedUserIdRef.current !== currentUser.id) return;
 
-    const userId = currentUser.id;
+    const localUserId = currentUser.id;
     const data: PersistedFinanceData = {
       accounts,
       transactions,
@@ -218,14 +245,15 @@ const App: React.FC = () => {
       incomeCategories
     };
 
-    // 1) Local inmediato
-    localStorage.setItem(`f360_data_${userId}`, JSON.stringify(data));
+    // 1) Local inmediato (por id local actual)
+    localStorage.setItem(`f360_data_${localUserId}`, JSON.stringify(data));
 
-    // 2) Nube con debounce
+    // 2) Nube con debounce (por clave estable email)
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
     saveTimerRef.current = setTimeout(() => {
-      saveToCloud(userId, data).catch((e) => {
+      const cloudUserKey = getCloudUserKey(currentUser);
+      saveToCloud(cloudUserKey, data).catch((e) => {
         console.warn('No se pudo guardar en nube (queda guardado local):', e);
       });
     }, 900);

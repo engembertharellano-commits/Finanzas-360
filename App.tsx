@@ -1,10 +1,9 @@
-
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { 
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import {
   LayoutDashboard, Wallet, TrendingUp, PieChart, Sparkles, CreditCard,
-  Menu, X, ChevronLeft, ChevronRight, LogOut, Settings2, Briefcase, Users
+  Menu, X, ChevronLeft, ChevronRight, Settings2, Briefcase, Users
 } from 'lucide-react';
-import { 
+import {
   BankAccount, Transaction, Investment, Budget, User, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES
 } from './types';
 import { Dashboard } from './components/Dashboard';
@@ -16,17 +15,58 @@ import { BudgetView } from './components/BudgetView';
 import { AIChat } from './components/AIChat';
 import { CategorySettings } from './components/CategorySettings';
 import { ConfirmationModal } from './components/ConfirmationModal';
-import { WorkManagement } from './components/WorkManagement'; 
+import { WorkManagement } from './components/WorkManagement';
 import { CustodyManagement } from './components/CustodyManagement';
 import { Auth } from './components/Auth';
 import { FinanceAIService } from './services/geminiService';
 
 type View = 'dashboard' | 'accounts' | 'transactions' | 'portfolio' | 'budget' | 'ai' | 'settings' | 'work' | 'custody';
 
+type PersistedFinanceData = {
+  accounts: BankAccount[];
+  transactions: Transaction[];
+  investments: Investment[];
+  budgets: Budget[];
+  expenseCategories: string[];
+  incomeCategories: string[];
+};
+
+const EMPTY_DATA: PersistedFinanceData = {
+  accounts: [],
+  transactions: [],
+  investments: [],
+  budgets: [],
+  expenseCategories: DEFAULT_EXPENSE_CATEGORIES,
+  incomeCategories: DEFAULT_INCOME_CATEGORIES
+};
+
+const safeParse = <T,>(raw: string | null, fallback: T): T => {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+};
+
+const normalizeData = (input: any): PersistedFinanceData => ({
+  accounts: Array.isArray(input?.accounts) ? input.accounts : [],
+  transactions: Array.isArray(input?.transactions) ? input.transactions : [],
+  investments: Array.isArray(input?.investments) ? input.investments : [],
+  budgets: Array.isArray(input?.budgets) ? input.budgets : [],
+  expenseCategories: Array.isArray(input?.expenseCategories) ? input.expenseCategories : DEFAULT_EXPENSE_CATEGORIES,
+  incomeCategories: Array.isArray(input?.incomeCategories) ? input.incomeCategories : DEFAULT_INCOME_CATEGORIES
+});
+
+const readLocalUserData = (userId: string): PersistedFinanceData => {
+  const raw = localStorage.getItem(`f360_data_${userId}`);
+  return normalizeData(safeParse(raw, EMPTY_DATA));
+};
+
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('f360_user');
-    return saved ? JSON.parse(saved) : null;
+    return safeParse<User | null>(saved, null);
   });
 
   const [activeView, setActiveView] = useState<View>('dashboard');
@@ -39,13 +79,20 @@ const App: React.FC = () => {
   const [exchangeRate, setExchangeRate] = useState<number>(45.50);
   const [rateSourceUrl, setRateSourceUrl] = useState<string | undefined>(undefined);
   const [isSyncingRate, setIsSyncingRate] = useState(false);
+
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
-  
+
   const [expenseCategories, setExpenseCategories] = useState<string[]>(DEFAULT_EXPENSE_CATEGORIES);
   const [incomeCategories, setIncomeCategories] = useState<string[]>(DEFAULT_INCOME_CATEGORIES);
+
+  const [isLoadingCloud, setIsLoadingCloud] = useState(false);
+  const [isDataReady, setIsDataReady] = useState(false);
+
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadedUserIdRef = useRef<string | null>(null);
 
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -59,6 +106,16 @@ const App: React.FC = () => {
     onConfirm: () => {}
   });
 
+  const applyData = useCallback((data: PersistedFinanceData) => {
+    const clean = normalizeData(data);
+    setAccounts(clean.accounts);
+    setTransactions(clean.transactions);
+    setInvestments(clean.investments);
+    setBudgets(clean.budgets);
+    setExpenseCategories(clean.expenseCategories);
+    setIncomeCategories(clean.incomeCategories);
+  }, []);
+
   const fetchRate = useCallback(async () => {
     setIsSyncingRate(true);
     try {
@@ -67,45 +124,123 @@ const App: React.FC = () => {
       setExchangeRate(response.rate);
       setRateSourceUrl(response.sourceUrl);
     } catch (error) {
-      console.error("Error al sincronizar tasa:", error);
+      console.error('Error al sincronizar tasa:', error);
     } finally {
       setIsSyncingRate(false);
     }
   }, []);
 
-  useEffect(() => { 
-    if (currentUser) fetchRate(); 
-  }, [fetchRate, currentUser]);
+  const loadFromCloud = useCallback(async (userId: string): Promise<PersistedFinanceData | null> => {
+    const resp = await fetch(`/api/state?userId=${encodeURIComponent(userId)}`);
+    const json = await resp.json().catch(() => null);
+
+    if (!resp.ok || !json?.ok) return null;
+    if (!json?.found || !json?.payload || typeof json.payload !== 'object') return null;
+
+    return normalizeData(json.payload);
+  }, []);
+
+  const saveToCloud = useCallback(async (userId: string, payload: PersistedFinanceData): Promise<void> => {
+    const resp = await fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, payload })
+    });
+
+    if (!resp.ok) {
+      const j = await resp.json().catch(() => ({}));
+      throw new Error(j?.error || `Error guardando en nube (${resp.status})`);
+    }
+  }, []);
 
   useEffect(() => {
-    if (currentUser) {
-      const savedData = localStorage.getItem(`f360_data_${currentUser.id}`);
-      if (savedData) {
-        const parsed = JSON.parse(savedData);
-        setAccounts(parsed.accounts || []);
-        setTransactions(parsed.transactions || []);
-        setInvestments(parsed.investments || []);
-        setBudgets(parsed.budgets || []);
-        if (parsed.expenseCategories) setExpenseCategories(parsed.expenseCategories);
-        if (parsed.incomeCategories) setIncomeCategories(parsed.incomeCategories);
+    if (currentUser) fetchRate();
+  }, [currentUser, fetchRate]);
+
+  // Cargar datos del usuario (nube primero, local de respaldo)
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!currentUser) {
+        loadedUserIdRef.current = null;
+        setIsDataReady(false);
+        applyData(EMPTY_DATA);
+        return;
       }
-      localStorage.setItem('f360_user', JSON.stringify(currentUser));
-    }
-  }, [currentUser]);
 
+      setIsLoadingCloud(true);
+      setIsDataReady(false);
+
+      try {
+        const localData = readLocalUserData(currentUser.id);
+        let finalData = localData;
+
+        try {
+          const cloudData = await loadFromCloud(currentUser.id);
+          if (cloudData) finalData = cloudData;
+        } catch (e) {
+          console.warn('No se pudo leer nube, usando local:', e);
+        }
+
+        if (cancelled) return;
+
+        applyData(finalData);
+        localStorage.setItem('f360_user', JSON.stringify(currentUser));
+        localStorage.setItem(`f360_data_${currentUser.id}`, JSON.stringify(finalData));
+        loadedUserIdRef.current = currentUser.id;
+        setIsDataReady(true);
+      } finally {
+        if (!cancelled) setIsLoadingCloud(false);
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser, applyData, loadFromCloud]);
+
+  // Guardar cambios (local inmediato + nube con debounce)
   useEffect(() => {
-    if (currentUser) {
-      const data = { accounts, transactions, investments, budgets, expenseCategories, incomeCategories };
-      localStorage.setItem(`f360_data_${currentUser.id}`, JSON.stringify(data));
-    }
-  }, [accounts, transactions, investments, budgets, expenseCategories, incomeCategories, currentUser]);
+    if (!currentUser) return;
+    if (!isDataReady) return;
+    if (loadedUserIdRef.current !== currentUser.id) return;
+
+    const userId = currentUser.id;
+    const data: PersistedFinanceData = {
+      accounts,
+      transactions,
+      investments,
+      budgets,
+      expenseCategories,
+      incomeCategories
+    };
+
+    // 1) Local inmediato
+    localStorage.setItem(`f360_data_${userId}`, JSON.stringify(data));
+
+    // 2) Nube con debounce
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+    saveTimerRef.current = setTimeout(() => {
+      saveToCloud(userId, data).catch((e) => {
+        console.warn('No se pudo guardar en nube (queda guardado local):', e);
+      });
+    }, 900);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [accounts, transactions, investments, budgets, expenseCategories, incomeCategories, currentUser, isDataReady, saveToCloud]);
 
   const requestDelete = (title: string, message: string, onConfirm: () => void) => {
     setConfirmModal({ isOpen: true, title, message, onConfirm });
   };
 
   const handleAddAccount = (acc: BankAccount) => setAccounts(prev => [...prev, acc]);
-  
+
   const handleDeleteAccount = (id: string) => {
     const acc = accounts.find(a => a.id === id);
     requestDelete(
@@ -126,8 +261,8 @@ const App: React.FC = () => {
         if (newT.type === 'Ingreso') return { ...acc, balance: acc.balance + (newT.amount - comm) };
         if (newT.type === 'Transferencia') return { ...acc, balance: acc.balance - newT.amount };
         if (newT.type === 'Ajuste') {
-           const change = newT.adjustmentDirection === 'plus' ? newT.amount : -newT.amount;
-           return { ...acc, balance: acc.balance + change };
+          const change = newT.adjustmentDirection === 'plus' ? newT.amount : -newT.amount;
+          return { ...acc, balance: acc.balance + change };
         }
       }
       if (newT.type === 'Transferencia' && acc.id === newT.toAccountId) {
@@ -141,7 +276,7 @@ const App: React.FC = () => {
   const handleDeleteTransaction = (id: string) => {
     const t = transactions.find(item => item.id === id);
     if (!t) return;
-    
+
     requestDelete(
       '¿Eliminar Movimiento?',
       `Se revertirá el impacto de "${t.description}" en los saldos.`,
@@ -173,9 +308,11 @@ const App: React.FC = () => {
   };
 
   const handleAddInvestment = (inv: Investment) => setInvestments(prev => [...prev, inv]);
+
   const handleUpdateInvestment = (updatedInv: Investment) => {
     setInvestments(prev => prev.map(i => i.id === updatedInv.id ? updatedInv : i).filter(i => i.quantity > 0));
   };
+
   const handleDeleteInvestment = (id: string) => {
     const inv = investments.find(i => i.id === id);
     requestDelete('¿Eliminar Inversión?', `¿Quitar "${inv?.name}" de tu cartera?`, () => setInvestments(prev => prev.filter(i => i.id !== id)));
@@ -187,9 +324,9 @@ const App: React.FC = () => {
       return [...filtered, { ...b, id: crypto.randomUUID(), month: selectedMonth }];
     });
   };
-  
+
   const handleDeleteBudget = (id: string) => {
-    requestDelete('¿Eliminar Presupuesto?', `El límite será eliminado.`, () => setBudgets(prev => prev.filter(item => item.id !== id)));
+    requestDelete('¿Eliminar Presupuesto?', 'El límite será eliminado.', () => setBudgets(prev => prev.filter(item => item.id !== id)));
   };
 
   const changeMonth = (offset: number) => {
@@ -206,6 +343,18 @@ const App: React.FC = () => {
   const handleLogout = () => {
     localStorage.removeItem('f360_user');
     setCurrentUser(null);
+
+    // Limpieza visual inmediata
+    setAccounts([]);
+    setTransactions([]);
+    setInvestments([]);
+    setBudgets([]);
+    setExpenseCategories(DEFAULT_EXPENSE_CATEGORIES);
+    setIncomeCategories(DEFAULT_INCOME_CATEGORIES);
+
+    setIsDataReady(false);
+    loadedUserIdRef.current = null;
+
     setActiveView('dashboard');
     setIsMobileMenuOpen(false);
   };
@@ -214,12 +363,12 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 text-slate-900 animate-in fade-in duration-500 overflow-x-hidden font-sans">
-      <ConfirmationModal 
+      <ConfirmationModal
         isOpen={confirmModal.isOpen}
         title={confirmModal.title}
         message={confirmModal.message}
         onConfirm={confirmModal.onConfirm}
-        onClose={() => setConfirmModal(prev => ({...prev, isOpen: false}))}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
       />
 
       {/* Header móvil */}
@@ -251,54 +400,62 @@ const App: React.FC = () => {
 
           {/* Usuario */}
           <div className="mb-8 p-5 bg-slate-50 rounded-[2rem] border border-slate-100 flex items-center space-x-4">
-             <div className="w-11 h-11 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center text-slate-400 font-black shadow-sm">
-                {currentUser.name.charAt(0).toUpperCase()}
-             </div>
-             <div className="min-w-0">
-                <p className="text-sm font-black truncate text-slate-900">{currentUser.name}</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{currentUser.email}</p>
-             </div>
+            <div className="w-11 h-11 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center text-slate-400 font-black shadow-sm">
+              {currentUser.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-black truncate text-slate-900">{currentUser.name}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{currentUser.email}</p>
+            </div>
           </div>
 
           <nav className="space-y-1.5 flex-1 overflow-y-auto custom-scrollbar pr-1">
-            <NavItem active={activeView === 'dashboard'} onClick={() => { setActiveView('dashboard'); setIsMobileMenuOpen(false); }} icon={<LayoutDashboard size={20}/>} label="Resumen General" />
-            
-            <NavItem 
-              active={activeView === 'ai'} 
-              onClick={() => { setActiveView('ai'); setIsMobileMenuOpen(false); }} 
-              icon={<Sparkles size={20}/>} 
-              label="Análisis Inteligente" 
+            <NavItem active={activeView === 'dashboard'} onClick={() => { setActiveView('dashboard'); setIsMobileMenuOpen(false); }} icon={<LayoutDashboard size={20} />} label="Resumen General" />
+
+            <NavItem
+              active={activeView === 'ai'}
+              onClick={() => { setActiveView('ai'); setIsMobileMenuOpen(false); }}
+              icon={<Sparkles size={20} />}
+              label="Análisis Inteligente"
               isSpecial={true}
             />
 
             <div className="h-px bg-slate-100 my-4 mx-2"></div>
 
-            <NavItem active={activeView === 'accounts'} onClick={() => { setActiveView('accounts'); setIsMobileMenuOpen(false); }} icon={<CreditCard size={20}/>} label="Bancos y Efectivo" />
-            <NavItem active={activeView === 'transactions'} onClick={() => { setActiveView('transactions'); setIsMobileMenuOpen(false); }} icon={<Wallet size={20}/>} label="Historial Movimientos" />
-            <NavItem active={activeView === 'portfolio'} onClick={() => { setActiveView('portfolio'); setIsMobileMenuOpen(false); }} icon={<TrendingUp size={20}/>} label="Mi Portafolio" />
-            
+            <NavItem active={activeView === 'accounts'} onClick={() => { setActiveView('accounts'); setIsMobileMenuOpen(false); }} icon={<CreditCard size={20} />} label="Bancos y Efectivo" />
+            <NavItem active={activeView === 'transactions'} onClick={() => { setActiveView('transactions'); setIsMobileMenuOpen(false); }} icon={<Wallet size={20} />} label="Historial Movimientos" />
+            <NavItem active={activeView === 'portfolio'} onClick={() => { setActiveView('portfolio'); setIsMobileMenuOpen(false); }} icon={<TrendingUp size={20} />} label="Mi Portafolio" />
+
             <div className="h-px bg-slate-100 my-4 mx-2"></div>
-            
-            <NavItem active={activeView === 'work'} onClick={() => { setActiveView('work'); setIsMobileMenuOpen(false); }} icon={<Briefcase size={20}/>} label="Pote de Trabajo" />
-            <NavItem active={activeView === 'custody'} onClick={() => { setActiveView('custody'); setIsMobileMenuOpen(false); }} icon={<Users size={20}/>} label="Dinero Terceros" />
-            <NavItem active={activeView === 'budget'} onClick={() => { setActiveView('budget'); setIsMobileMenuOpen(false); }} icon={<PieChart size={20}/>} label="Límites Gastos" />
-            <NavItem active={activeView === 'settings'} onClick={() => { setActiveView('settings'); setIsMobileMenuOpen(false); }} icon={<Settings2 size={20}/>} label="Categorías" />
+
+            <NavItem active={activeView === 'work'} onClick={() => { setActiveView('work'); setIsMobileMenuOpen(false); }} icon={<Briefcase size={20} />} label="Pote de Trabajo" />
+            <NavItem active={activeView === 'custody'} onClick={() => { setActiveView('custody'); setIsMobileMenuOpen(false); }} icon={<Users size={20} />} label="Dinero Terceros" />
+            <NavItem active={activeView === 'budget'} onClick={() => { setActiveView('budget'); setIsMobileMenuOpen(false); }} icon={<PieChart size={20} />} label="Límites Gastos" />
+            <NavItem active={activeView === 'settings'} onClick={() => { setActiveView('settings'); setIsMobileMenuOpen(false); }} icon={<Settings2 size={20} />} label="Categorías" />
           </nav>
 
           <div className="mt-6 space-y-4 pt-4 border-t border-slate-50">
-             <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                <div className="flex items-center justify-between">
-                  <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-xl text-slate-400"><ChevronLeft size={16}/></button>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 text-center">{formattedMonth}</span>
-                  <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-xl text-slate-400"><ChevronRight size={16}/></button>
-                </div>
-             </div>
+            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+              <div className="flex items-center justify-between">
+                <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-xl text-slate-400"><ChevronLeft size={16} /></button>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 text-center">{formattedMonth}</span>
+                <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-xl text-slate-400"><ChevronRight size={16} /></button>
+              </div>
+            </div>
             <button onClick={handleLogout} className="w-full py-3 text-[10px] font-black text-slate-300 hover:text-rose-500 uppercase tracking-widest transition-colors">Cerrar Sesión</button>
           </div>
         </div>
       </aside>
 
       <main className="flex-1 overflow-y-auto px-6 py-8 md:p-14 view-container">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {isLoadingCloud && (
+            <div className="bg-white border border-slate-100 rounded-2xl px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+              Sincronizando datos con la nube...
+            </div>
+          )}
+        </div>
+
         <div className="max-w-7xl mx-auto space-y-12">
           {activeView === 'dashboard' && <Dashboard accounts={accounts} transactions={transactions} investments={investments} budgets={budgets} selectedMonth={selectedMonth} exchangeRate={exchangeRate} rateSourceUrl={rateSourceUrl} onSyncRate={fetchRate} isSyncingRate={isSyncingRate} />}
           {activeView === 'accounts' && <AccountsList accounts={accounts} onAdd={handleAddAccount} onDelete={handleDeleteAccount} />}
@@ -319,16 +476,16 @@ const App: React.FC = () => {
 };
 
 const NavItem = ({ active, onClick, icon, label, isSpecial }: any) => (
-  <button 
-    onClick={onClick} 
+  <button
+    onClick={onClick}
     className={`
       flex items-center space-x-4 w-full p-4 rounded-2xl transition-all duration-300 group
-      ${active 
-        ? isSpecial 
-          ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100 font-bold' 
-          : 'bg-slate-900 text-white shadow-xl shadow-slate-200 font-bold' 
-        : isSpecial 
-          ? 'text-indigo-500 hover:bg-indigo-50 font-bold' 
+      ${active
+        ? isSpecial
+          ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100 font-bold'
+          : 'bg-slate-900 text-white shadow-xl shadow-slate-200 font-bold'
+        : isSpecial
+          ? 'text-indigo-500 hover:bg-indigo-50 font-bold'
           : 'text-slate-500 hover:bg-slate-50'}
     `}
   >

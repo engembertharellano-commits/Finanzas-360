@@ -16,7 +16,7 @@ export interface AssetLookupResponse {
 
 export class FinanceAIService {
   private getApiKey(): string {
-    // Compatible con Vite (recomendado) y con el formato previo
+    // Cliente (Vite) y fallback legacy
     const viteKey =
       (import.meta as any)?.env?.VITE_GEMINI_API_KEY ||
       (import.meta as any)?.env?.API_KEY ||
@@ -32,7 +32,7 @@ export class FinanceAIService {
     return new GoogleGenAI({ apiKey: this.getApiKey() });
   }
 
-  // ✅ NUEVO: tasa desde endpoint propio en Vercel (más confiable que IA generativa)
+  // Tasa VES desde endpoint backend
   async getExchangeRate(): Promise<ExchangeRateResponse> {
     try {
       const resp = await fetch("/api/exchange-rate", {
@@ -60,14 +60,36 @@ export class FinanceAIService {
     }
   }
 
+  // ✅ Lookup ticker por backend (estable en producción)
   async lookupAssetInfo(ticker: string): Promise<AssetLookupResponse | null> {
+    const cleanTicker = String(ticker || "").trim().toUpperCase();
+    if (!cleanTicker) return null;
+
+    // 1) Intento principal: endpoint backend
+    try {
+      const resp = await fetch(`/api/asset-lookup?ticker=${encodeURIComponent(cleanTicker)}`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      });
+
+      const data = await resp.json().catch(() => null);
+
+      if (resp.ok && data?.ok && typeof data.name === "string" && typeof data.price === "number") {
+        return { name: data.name, price: data.price };
+      }
+    } catch (error) {
+      console.warn("lookupAssetInfo backend falló, probando fallback cliente:", error);
+    }
+
+    // 2) Fallback: cliente directo (si hay key expuesta)
     if (!this.getApiKey()) return null;
 
     try {
       const ai = this.getClient();
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Busca el nombre oficial y el precio de mercado actual de la acción o criptomoneda con ticker: ${ticker}. Responde en formato JSON.`,
+        contents: `Busca el nombre oficial y el precio de mercado actual de la acción o criptomoneda con ticker: ${cleanTicker}. Responde en formato JSON.`,
         config: {
           tools: [{ googleSearch: {} }],
           responseMimeType: "application/json",
@@ -86,7 +108,7 @@ export class FinanceAIService {
       const text = response.text;
       return text ? JSON.parse(text) : null;
     } catch (error) {
-      console.error("Error buscando activo:", error);
+      console.error("Error buscando activo (fallback cliente):", error);
       return null;
     }
   }
@@ -176,7 +198,6 @@ export class FinanceAIService {
       3. Responde de forma muy concisa en Español.
     `;
 
-    // Contexto resumido para mejorar respuestas sin enviar demasiados datos
     const resumenContexto = `
       CONTEXTO ACTUAL:
       - total_transacciones: ${context.transactions.length}

@@ -135,7 +135,7 @@ const App: React.FC = () => {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadedUserIdRef = useRef<string | null>(null);
 
-  // SOLUCIÓN 2: snapshot serializado para evitar saves redundantes
+  // Solución 2: snapshot serializado para evitar saves redundantes
   const lastPersistedRef = useRef<string>('');
 
   const [confirmModal, setConfirmModal] = useState<{
@@ -201,6 +201,14 @@ const App: React.FC = () => {
     if (currentUser) fetchRate();
   }, [currentUser, fetchRate]);
 
+  // Solución 3: auto-ocultar mensajes "saved/error"
+  useEffect(() => {
+    if (cloudStatus === 'saved' || cloudStatus === 'error') {
+      const t = setTimeout(() => setCloudStatus('idle'), 2200);
+      return () => clearTimeout(t);
+    }
+  }, [cloudStatus]);
+
   // Cargar datos del usuario: nube primero (clave canónica), local de respaldo
   useEffect(() => {
     let cancelled = false;
@@ -259,7 +267,7 @@ const App: React.FC = () => {
         const serializedFinal = JSON.stringify(finalData);
         localStorage.setItem(`f360_data_${currentUser.id}`, serializedFinal);
 
-        // SOLUCIÓN 2: marcar snapshot cargado como "último persistido"
+        // Solución 2: marcar snapshot cargado como último persistido
         lastPersistedRef.current = serializedFinal;
 
         loadedUserIdRef.current = currentUser.id;
@@ -295,7 +303,7 @@ const App: React.FC = () => {
     const serialized = JSON.stringify(data);
     localStorage.setItem(`f360_data_${localUserId}`, serialized);
 
-    // SOLUCIÓN 2: no guardar en nube si no hay cambios reales
+    // Solución 2: si no hay cambios reales, no guardar en nube
     if (serialized === lastPersistedRef.current) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       return;
@@ -308,7 +316,7 @@ const App: React.FC = () => {
         setCloudStatus('saving');
         const primaryKey = getPrimaryCloudKey(currentUser);
         await saveToCloud(primaryKey, data);
-        lastPersistedRef.current = serialized; // actualizar snapshot al guardar exitosamente
+        lastPersistedRef.current = serialized;
         setCloudStatus('saved');
       } catch (e) {
         console.warn('No se pudo guardar en nube (se guardó local):', e);
@@ -335,7 +343,7 @@ const App: React.FC = () => {
     setConfirmModal({ isOpen: true, title, message, onConfirm });
   };
 
-  // SOLUCIÓN 1: impacto contable unificado para add/delete/update de transacciones
+  // Solución 1: impacto contable unificado para add/delete/update
   const applyTransactionImpact = useCallback(
     (accountsList: BankAccount[], tx: Transaction, direction: 1 | -1 = 1): BankAccount[] => {
       const comm = tx.commission ?? 0;
@@ -404,15 +412,14 @@ const App: React.FC = () => {
   const handleUpdateTransaction = (updated: Transaction) => {
     const original = transactions.find(t => t.id === updated.id);
 
-    // Respaldo ante condiciones de carrera
     if (!original) {
-      setTransactions(prev => prev.map(t => t.id === updated.id ? updated : t));
+      setTransactions(prev => prev.map(t => (t.id === updated.id ? updated : t)));
       return;
     }
 
     // 1) revertir impacto original, 2) aplicar impacto actualizado
     setAccounts(prev => applyTransactionImpact(applyTransactionImpact(prev, original, -1), updated, 1));
-    setTransactions(prev => prev.map(t => t.id === updated.id ? updated : t));
+    setTransactions(prev => prev.map(t => (t.id === updated.id ? updated : t)));
   };
 
   const handleAddInvestment = (inv: Investment) => setInvestments(prev => [...prev, inv]);
@@ -526,7 +533,7 @@ const App: React.FC = () => {
               onClick={() => { setActiveView('ai'); setIsMobileMenuOpen(false); }}
               icon={<Sparkles size={20} />}
               label="Análisis Inteligente"
-              isSpecial={true}
+              isSpecial
             />
 
             <div className="h-px bg-slate-100 my-4 mx-2"></div>
@@ -602,7 +609,15 @@ const App: React.FC = () => {
   );
 };
 
-const NavItem = ({ active, onClick, icon, label, isSpecial }: any) => (
+type NavItemProps = {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  isSpecial?: boolean;
+};
+
+const NavItem: React.FC<NavItemProps> = ({ active, onClick, icon, label, isSpecial = false }) => (
   <button
     onClick={onClick}
     className={`

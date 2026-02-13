@@ -1,6 +1,12 @@
-
 export type Currency = 'USD' | 'VES';
-export type AccountType = 'Ahorros' | 'Corriente' | 'Efectivo' | 'Tarjeta de Crédito' | 'Billetera Virtual' | 'Broker';
+export type AccountType =
+  | 'Ahorros'
+  | 'Corriente'
+  | 'Efectivo'
+  | 'Tarjeta de Crédito'
+  | 'Billetera Virtual'
+  | 'Broker';
+
 export type TransactionType = 'Ingreso' | 'Gasto' | 'Transferencia' | 'Ajuste';
 export type Category = string;
 
@@ -8,7 +14,11 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  password?: string; // Nuevo: Contraseña para acceso protegido
+  /**
+   * Acceso local (solo front/localStorage).
+   * Si luego migras a auth real backend, este campo debe salir del cliente.
+   */
+  password?: string;
 }
 
 export interface BankAccount {
@@ -18,6 +28,8 @@ export interface BankAccount {
   balance: number;
   currency: Currency;
   color: string;
+
+  // Tarjeta de crédito (opcionales)
   creditLimit?: number;
   closingDay?: number;
   dueDay?: number;
@@ -27,33 +39,51 @@ export interface Transaction {
   id: string;
   description: string;
   amount: number;
-  commission?: number; 
+  commission?: number;
   type: TransactionType;
   category: string;
-  date: string;
+  date: string; // recomendado: YYYY-MM-DD o ISO
   currency: Currency;
+
+  // Cuenta origen (o única en ingreso/gasto/ajuste)
   accountId: string;
+
+  // Transferencia
   toAccountId?: string;
   targetAmount?: number;
+
+  // Inversión relacionada
   relatedInvestmentId?: string;
+
+  // Ajuste
   adjustmentDirection?: 'plus' | 'minus';
-  isWorkRelated?: boolean; 
+
+  // Trabajo
+  isWorkRelated?: boolean;
   workStatus?: 'pending' | 'settled';
-  isThirdParty?: boolean; 
-  thirdPartyOwner?: string; 
+
+  // Terceros (tu naming actual)
+  isThirdParty?: boolean;
+  thirdPartyOwner?: string;
+
+  // Compatibilidad extra (por si algún componente usa otro naming)
+  isThirdPartyMoney?: boolean;
+  thirdPartyName?: string;
 }
 
 export interface Investment {
   id: string;
   name: string;
+
+  // Tu modelo actual
   ticker?: string;
-  brokerId?: string; 
+  brokerId?: string;
   platform?: string;
-  initialInvestment: number; 
-  quantity: number; 
-  buyPrice: number; 
-  currentMarketPrice: number; 
-  value: number; 
+  initialInvestment: number;
+  quantity: number;
+  buyPrice: number;
+  currentMarketPrice: number;
+  value: number;
   currency: Currency;
   performance: number;
   category: string;
@@ -61,6 +91,17 @@ export interface Investment {
   yieldRate?: number;
   yieldPeriod?: 'Mensual' | 'Anual';
   participationPercent?: number;
+
+  // Compatibilidad adicional con otras vistas/helpers
+  currentValue?: number;
+  marketValue?: number;
+  totalValue?: number;
+  amount?: number;
+  currentPrice?: number;
+  purchasePrice?: number;
+  price?: number;
+  symbol?: string;
+  type?: 'Stock' | 'Crypto' | 'ETF' | 'Bono' | 'Fondo' | 'Otro' | string;
 }
 
 export interface Budget {
@@ -68,9 +109,27 @@ export interface Budget {
   category: string;
   limit: number;
   currency: Currency;
-  month: string; 
-  spent?: number; 
+  month: string; // YYYY-MM
+  spent?: number;
 }
 
-export const DEFAULT_EXPENSE_CATEGORIES = ['Comida', 'Transporte', 'Servicios', 'Salud', 'Educación', 'Ocio', 'Compras', 'Comisiones', 'Otros'];
-export const DEFAULT_INCOME_CATEGORIES = ['Sueldo', 'Freelance', 'Ventas', 'Inversiones', 'Regalos', 'Otros'];
+export const DEFAULT_EXPENSE_CATEGORIES: string[] = [
+  'Comida',
+  'Transporte',
+  'Servicios',
+  'Salud',
+  'Educación',
+  'Ocio',
+  'Compras',
+  'Comisiones',
+  'Otros'
+];
+
+export const DEFAULT_INCOME_CATEGORIES: string[] = [
+  'Sueldo',
+  'Freelance',
+  'Ventas',
+  'Inversiones',
+  'Regalos',
+  'Otros'
+];

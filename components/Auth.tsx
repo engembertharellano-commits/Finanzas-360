@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Sparkles,
   Mail,
@@ -37,7 +37,7 @@ const normalizeEmail = (email?: string | null): string => {
   const [localPart, domain] = raw.split('@');
   if (!localPart || !domain) return raw;
 
-  // Canonicalización Gmail (evita duplicados tipo nombre.apellido+tag@gmail.com)
+  // Canonicalización Gmail
   if (domain === 'gmail.com' || domain === 'googlemail.com') {
     const localNoPlus = localPart.split('+')[0];
     const localNoDots = localNoPlus.replace(/\./g, '');
@@ -57,6 +57,59 @@ const readUsers = (): User[] => {
 
 const saveUsers = (users: User[]) => {
   localStorage.setItem(PRIMARY_USERS_KEY, JSON.stringify(users));
+};
+
+const cloudUserKey = (email: string) => `auth:mail:${normalizeEmail(email)}`;
+
+const sanitizeUserPayload = (raw: any): User | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const email = normalizeEmail(raw.email);
+  if (!email) return null;
+
+  return {
+    id: String(raw.id || '').trim() || crypto.randomUUID(),
+    name: String(raw.name || '').trim() || email.split('@')[0],
+    email,
+    password: typeof raw.password === 'string' ? raw.password : ''
+  };
+};
+
+const loadCloudUser = async (email: string): Promise<User | null> => {
+  const key = cloudUserKey(email);
+
+  const resp = await fetch(`/api/state?userId=${encodeURIComponent(key)}`);
+  const json = await resp.json().catch(() => null);
+
+  if (!resp.ok || !json?.ok) return null;
+  if (!json?.found || !json?.payload || typeof json.payload !== 'object') return null;
+
+  return sanitizeUserPayload(json.payload);
+};
+
+const saveCloudUser = async (user: User): Promise<void> => {
+  const email = normalizeEmail(user.email);
+  const key = cloudUserKey(email);
+
+  const payload: User = {
+    id: String(user.id || '').trim() || crypto.randomUUID(),
+    name: String(user.name || '').trim(),
+    email,
+    password: typeof user.password === 'string' ? user.password : ''
+  };
+
+  const resp = await fetch('/api/state', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId: key,
+      payload
+    })
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err?.error || `No se pudo guardar usuario en nube (${resp.status})`);
+  }
 };
 
 export const Auth: React.FC<Props> = ({ onSelectUser }) => {
@@ -83,7 +136,7 @@ export const Auth: React.FC<Props> = ({ onSelectUser }) => {
     setUsers(readUsers());
   }, []);
 
-  const usersCount = useMemo(() => users.length, [users]);
+  const usersCount = users.length;
 
   const clearError = () => setError('');
 
@@ -95,7 +148,24 @@ export const Auth: React.FC<Props> = ({ onSelectUser }) => {
     setShowNewPassword(false);
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const upsertLocalUser = (user: User) => {
+    setUsers((prev) => {
+      const email = normalizeEmail(user.email);
+      const next = [
+        { ...user, email },
+        ...prev.filter((u) => normalizeEmail(u.email) !== email)
+      ];
+      saveUsers(next);
+      return next;
+    });
+  };
+
+  const persistSession = (user: User) => {
+    localStorage.setItem('f360_user', JSON.stringify(user));
+    onSelectUser(user);
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
 
@@ -113,29 +183,55 @@ export const Auth: React.FC<Props> = ({ onSelectUser }) => {
 
     setBusy(true);
     try {
-      const userFound = users.find(
-        (u) => normalizeEmail((u as any).email) === email
-      );
+      // 1) Intentar nube (cross-device)
+      let cloudUser: User | null = null;
+      try {
+        cloudUser = await loadCloudUser(email);
+      } catch {
+        // silencioso: cae a local
+      }
 
-      if (!userFound) {
+      if (cloudUser) {
+        if ((cloudUser.password || '') !== loginPassword) {
+          setError('Contraseña incorrecta.');
+          return;
+        }
+
+        upsertLocalUser(cloudUser);
+        persistSession(cloudUser);
+        return;
+      }
+
+      // 2) Fallback local (usuario legado)
+      const localUser = users.find((u) => normalizeEmail(u.email) === email);
+      if (!localUser) {
         setError('No existe un perfil con ese correo. Crea uno nuevo.');
         return;
       }
 
-      if ((userFound as any).password !== loginPassword) {
+      if ((localUser.password || '') !== loginPassword) {
         setError('Contraseña incorrecta.');
         return;
       }
 
-      // Mantener sesión activa
-      localStorage.setItem('f360_user', JSON.stringify(userFound));
-      onSelectUser(userFound);
+      // Migración transparente a nube
+      try {
+        await saveCloudUser({
+          ...localUser,
+          email,
+          password: localUser.password || loginPassword
+        });
+      } catch {
+        // no bloquea login
+      }
+
+      persistSession(localUser);
     } finally {
       setBusy(false);
     }
   };
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
 
@@ -163,30 +259,46 @@ export const Auth: React.FC<Props> = ({ onSelectUser }) => {
       return;
     }
 
-    const exists = users.some((u) => normalizeEmail((u as any).email) === email);
-    if (exists) {
-      setError('Ya existe un usuario con ese correo. Inicia sesión.');
-      setMode('login');
-      return;
-    }
-
     setBusy(true);
     try {
+      // validar duplicado local
+      const existsLocal = users.some((u) => normalizeEmail(u.email) === email);
+      if (existsLocal) {
+        setError('Ya existe un usuario con ese correo. Inicia sesión.');
+        setMode('login');
+        return;
+      }
+
+      // validar duplicado nube
+      try {
+        const existsCloud = await loadCloudUser(email);
+        if (existsCloud) {
+          setError('Ya existe un usuario con ese correo. Inicia sesión.');
+          setMode('login');
+          return;
+        }
+      } catch {
+        // si falla la lectura de nube, igual intentamos crear
+      }
+
       const newUser: User = {
         id: crypto.randomUUID(),
         name,
         email,
         password
-      } as User;
+      };
 
-      const updatedUsers = [...users, newUser];
-      setUsers(updatedUsers);
-      saveUsers(updatedUsers);
+      // Guardar en nube (clave para cross-device)
+      await saveCloudUser(newUser);
 
-      // Dejar sesión iniciada automáticamente
+      // Guardar local + sesión
+      upsertLocalUser(newUser);
       localStorage.setItem('f360_user', JSON.stringify(newUser));
+
       resetRegisterForm();
       onSelectUser(newUser);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo crear el usuario.');
     } finally {
       setBusy(false);
     }
@@ -421,11 +533,11 @@ export const Auth: React.FC<Props> = ({ onSelectUser }) => {
         </div>
 
         <p className="mt-8 text-center text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
-          Tus datos se almacenan localmente en este dispositivo.
+          Tus datos se almacenan localmente y se sincronizan en nube.
         </p>
 
         <p className="mt-2 text-center text-[10px] font-bold text-slate-300 uppercase tracking-[0.2em]">
-          Usuarios registrados: {usersCount}
+          Usuarios en este dispositivo: {usersCount}
         </p>
       </div>
     </div>

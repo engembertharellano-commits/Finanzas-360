@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   LayoutDashboard, Wallet, TrendingUp, PieChart, Sparkles, CreditCard,
-  Menu, X, ChevronLeft, ChevronRight, Settings2, Briefcase, Users
+  Menu, X, ChevronLeft, ChevronRight, Settings2, Briefcase, Users, UserX
 } from 'lucide-react';
 import {
   BankAccount, Transaction, Investment, Budget, User, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES
@@ -42,6 +42,8 @@ const EMPTY_DATA: PersistedFinanceData = {
   incomeCategories: DEFAULT_INCOME_CATEGORIES
 };
 
+const USER_REGISTRY_KEYS = ['f360_users', 'finanza360_users', 'users'];
+
 const safeParse = <T,>(raw: string | null, fallback: T): T => {
   if (!raw) return fallback;
   try {
@@ -80,12 +82,12 @@ const normalizeEmail = (email?: string | null): string => {
 const getPrimaryCloudKey = (user: User): string => {
   const email = normalizeEmail(user.email);
   if (email) return `mail:${email}`;
-  return `id:${String(user.id || '').trim()}`; // fallback extremo
+  return `id:${String((user as any).id || '').trim()}`; // fallback extremo
 };
 
 const getLegacyCloudKeys = (user: User): string[] => {
-  const rawEmail = String(user.email || '').trim().toLowerCase();
-  const id = String(user.id || '').trim();
+  const rawEmail = String((user as any).email || '').trim().toLowerCase();
+  const id = String((user as any).id || '').trim();
 
   return Array.from(
     new Set(
@@ -101,6 +103,56 @@ const getLegacyCloudKeys = (user: User): string[] => {
 const readLocalUserData = (userId: string): PersistedFinanceData => {
   const raw = localStorage.getItem(`f360_data_${userId}`);
   return normalizeData(safeParse(raw, EMPTY_DATA));
+};
+
+const removeUserFromRegistries = (user: User) => {
+  const targetId = String((user as any).id || '').trim();
+  const targetEmail = normalizeEmail((user as any).email);
+
+  USER_REGISTRY_KEYS.forEach((key) => {
+    const parsed = safeParse<any>(localStorage.getItem(key), null);
+    if (!Array.isArray(parsed)) return;
+
+    const filtered = parsed.filter((u: any) => {
+      const uid = String(u?.id || '').trim();
+      const uEmail = normalizeEmail(u?.email);
+      return uid !== targetId && uEmail !== targetEmail;
+    });
+
+    if (filtered.length) {
+      localStorage.setItem(key, JSON.stringify(filtered));
+    } else {
+      localStorage.removeItem(key);
+    }
+  });
+};
+
+const getInvestmentAmountUSD = (inv: Investment): number => {
+  const i = inv as any;
+
+  if (typeof i.currentValue === 'number' && Number.isFinite(i.currentValue)) return i.currentValue;
+  if (typeof i.marketValue === 'number' && Number.isFinite(i.marketValue)) return i.marketValue;
+  if (typeof i.totalValue === 'number' && Number.isFinite(i.totalValue)) return i.totalValue;
+
+  const qty = Number(i.quantity ?? 0);
+
+  if (typeof i.currentPrice === 'number' && Number.isFinite(i.currentPrice)) return qty * i.currentPrice;
+  if (typeof i.price === 'number' && Number.isFinite(i.price)) return qty * i.price;
+  if (typeof i.purchasePrice === 'number' && Number.isFinite(i.purchasePrice)) return qty * i.purchasePrice;
+  if (typeof i.buyPrice === 'number' && Number.isFinite(i.buyPrice)) return qty * i.buyPrice;
+
+  if (typeof i.amount === 'number' && Number.isFinite(i.amount)) return i.amount;
+
+  return 0;
+};
+
+const formatCurrency = (value: number, currency: 'USD' | 'VES') => {
+  const safe = Number.isFinite(value) ? value : 0;
+  return new Intl.NumberFormat('es-VE', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 2
+  }).format(safe);
 };
 
 const App: React.FC = () => {
@@ -131,12 +183,11 @@ const App: React.FC = () => {
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
   const [cloudStatus, setCloudStatus] = useState<CloudStatus>('idle');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadedUserIdRef = useRef<string | null>(null);
-
-  // Solución 2: snapshot serializado para evitar saves redundantes
-  const lastPersistedRef = useRef<string>('');
+  const lastPersistedRef = useRef<string>(''); // evita guardado redundante
 
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -197,11 +248,43 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const deleteFromCloud = useCallback(async (user: User): Promise<void> => {
+    const keys = Array.from(new Set([getPrimaryCloudKey(user), ...getLegacyCloudKeys(user)]));
+
+    // Best effort: si backend no soporta DELETE, no bloquea baja local
+    await Promise.allSettled(
+      keys.map(async (key) => {
+        const resp = await fetch(`/api/state?userId=${encodeURIComponent(key)}`, { method: 'DELETE' });
+        // 200/204 ok, 404 no encontrado (también válido), 405 método no permitido (ignorable)
+        if (!resp.ok && resp.status !== 404 && resp.status !== 405) {
+          throw new Error(`No se pudo eliminar estado nube para ${key} (status ${resp.status})`);
+        }
+      })
+    );
+  }, []);
+
+  const resetSessionState = useCallback(() => {
+    setAccounts([]);
+    setTransactions([]);
+    setInvestments([]);
+    setBudgets([]);
+    setExpenseCategories(DEFAULT_EXPENSE_CATEGORIES);
+    setIncomeCategories(DEFAULT_INCOME_CATEGORIES);
+
+    setIsDataReady(false);
+    setCloudStatus('idle');
+    loadedUserIdRef.current = null;
+    lastPersistedRef.current = '';
+
+    setActiveView('dashboard');
+    setIsMobileMenuOpen(false);
+  }, []);
+
   useEffect(() => {
     if (currentUser) fetchRate();
   }, [currentUser, fetchRate]);
 
-  // Solución 3: auto-ocultar mensajes "saved/error"
+  // Auto-ocultar mensajes saved/error
   useEffect(() => {
     if (cloudStatus === 'saved' || cloudStatus === 'error') {
       const t = setTimeout(() => setCloudStatus('idle'), 2200);
@@ -228,7 +311,7 @@ const App: React.FC = () => {
       setCloudStatus('idle');
 
       try {
-        const localData = readLocalUserData(currentUser.id);
+        const localData = readLocalUserData(String((currentUser as any).id || ''));
         let finalData = localData;
 
         try {
@@ -265,12 +348,10 @@ const App: React.FC = () => {
         localStorage.setItem('f360_user', JSON.stringify(currentUser));
 
         const serializedFinal = JSON.stringify(finalData);
-        localStorage.setItem(`f360_data_${currentUser.id}`, serializedFinal);
+        localStorage.setItem(`f360_data_${String((currentUser as any).id || '')}`, serializedFinal);
 
-        // Solución 2: marcar snapshot cargado como último persistido
         lastPersistedRef.current = serializedFinal;
-
-        loadedUserIdRef.current = currentUser.id;
+        loadedUserIdRef.current = String((currentUser as any).id || '');
         setIsDataReady(true);
       } finally {
         if (!cancelled) setIsLoadingCloud(false);
@@ -288,9 +369,9 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!currentUser) return;
     if (!isDataReady) return;
-    if (loadedUserIdRef.current !== currentUser.id) return;
+    if (loadedUserIdRef.current !== String((currentUser as any).id || '')) return;
 
-    const localUserId = currentUser.id;
+    const localUserId = String((currentUser as any).id || '');
     const data: PersistedFinanceData = {
       accounts,
       transactions,
@@ -303,7 +384,7 @@ const App: React.FC = () => {
     const serialized = JSON.stringify(data);
     localStorage.setItem(`f360_data_${localUserId}`, serialized);
 
-    // Solución 2: si no hay cambios reales, no guardar en nube
+    // no guardar en nube si no cambió
     if (serialized === lastPersistedRef.current) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       return;
@@ -343,33 +424,34 @@ const App: React.FC = () => {
     setConfirmModal({ isOpen: true, title, message, onConfirm });
   };
 
-  // Solución 1: impacto contable unificado para add/delete/update
+  // Impacto contable unificado
   const applyTransactionImpact = useCallback(
     (accountsList: BankAccount[], tx: Transaction, direction: 1 | -1 = 1): BankAccount[] => {
-      const comm = tx.commission ?? 0;
-      const arrivalAmount = tx.targetAmount ?? tx.amount;
+      const t = tx as any;
+      const comm = t.commission ?? 0;
+      const arrivalAmount = t.targetAmount ?? t.amount;
 
       return accountsList.map((acc) => {
         // Cuenta origen
-        if (acc.id === tx.accountId) {
-          if (tx.type === 'Gasto') {
-            return { ...acc, balance: acc.balance - direction * (tx.amount + comm) };
+        if ((acc as any).id === t.accountId) {
+          if (t.type === 'Gasto') {
+            return { ...acc, balance: (acc as any).balance - direction * (t.amount + comm) };
           }
-          if (tx.type === 'Ingreso') {
-            return { ...acc, balance: acc.balance + direction * (tx.amount - comm) };
+          if (t.type === 'Ingreso') {
+            return { ...acc, balance: (acc as any).balance + direction * (t.amount - comm) };
           }
-          if (tx.type === 'Transferencia') {
-            return { ...acc, balance: acc.balance - direction * tx.amount };
+          if (t.type === 'Transferencia') {
+            return { ...acc, balance: (acc as any).balance - direction * t.amount };
           }
-          if (tx.type === 'Ajuste') {
-            const adj = tx.adjustmentDirection === 'plus' ? tx.amount : -tx.amount;
-            return { ...acc, balance: acc.balance + direction * adj };
+          if (t.type === 'Ajuste') {
+            const adj = t.adjustmentDirection === 'plus' ? t.amount : -t.amount;
+            return { ...acc, balance: (acc as any).balance + direction * adj };
           }
         }
 
         // Cuenta destino (solo transferencia)
-        if (tx.type === 'Transferencia' && acc.id === tx.toAccountId) {
-          return { ...acc, balance: acc.balance + direction * (arrivalAmount - comm) };
+        if (t.type === 'Transferencia' && (acc as any).id === t.toAccountId) {
+          return { ...acc, balance: (acc as any).balance + direction * (arrivalAmount - comm) };
         }
 
         return acc;
@@ -378,70 +460,83 @@ const App: React.FC = () => {
     []
   );
 
+  const totalInvestmentUSD = useMemo(() => {
+    return investments.reduce((acc, inv) => acc + getInvestmentAmountUSD(inv), 0);
+  }, [investments]);
+
+  const totalInvestmentVES = useMemo(() => totalInvestmentUSD * exchangeRate, [totalInvestmentUSD, exchangeRate]);
+
   const handleAddAccount = (acc: BankAccount) => setAccounts(prev => [...prev, acc]);
 
   const handleDeleteAccount = (id: string) => {
-    const acc = accounts.find(a => a.id === id);
+    const acc = accounts.find(a => (a as any).id === id);
     requestDelete(
       '¿Eliminar Cuenta?',
-      `Estás a punto de eliminar "${acc?.name}". Esta acción también podría afectar el historial visual de tus saldos.`,
-      () => setAccounts(prev => prev.filter(a => a.id !== id))
+      `Estás a punto de eliminar "${(acc as any)?.name}". Esta acción también podría afectar el historial visual de tus saldos.`,
+      () => setAccounts(prev => prev.filter(a => (a as any).id !== id))
     );
   };
 
   const handleAddTransaction = (tData: Omit<Transaction, 'id'>) => {
-    const newT: Transaction = { ...tData, id: crypto.randomUUID() };
+    const newT: Transaction = { ...(tData as any), id: crypto.randomUUID() } as Transaction;
     setTransactions(prev => [newT, ...prev]);
     setAccounts(prev => applyTransactionImpact(prev, newT, 1));
   };
 
   const handleDeleteTransaction = (id: string) => {
-    const t = transactions.find(item => item.id === id);
+    const t = transactions.find(item => (item as any).id === id);
     if (!t) return;
 
     requestDelete(
       '¿Eliminar Movimiento?',
-      `Se revertirá el impacto de "${t.description}" en los saldos.`,
+      `Se revertirá el impacto de "${(t as any).description}" en los saldos.`,
       () => {
         setAccounts(prev => applyTransactionImpact(prev, t, -1));
-        setTransactions(prev => prev.filter(item => item.id !== id));
+        setTransactions(prev => prev.filter(item => (item as any).id !== id));
       }
     );
   };
 
   const handleUpdateTransaction = (updated: Transaction) => {
-    const original = transactions.find(t => t.id === updated.id);
+    const original = transactions.find(t => (t as any).id === (updated as any).id);
 
     if (!original) {
-      setTransactions(prev => prev.map(t => (t.id === updated.id ? updated : t)));
+      setTransactions(prev => prev.map(t => ((t as any).id === (updated as any).id ? updated : t)));
       return;
     }
 
-    // 1) revertir impacto original, 2) aplicar impacto actualizado
     setAccounts(prev => applyTransactionImpact(applyTransactionImpact(prev, original, -1), updated, 1));
-    setTransactions(prev => prev.map(t => (t.id === updated.id ? updated : t)));
+    setTransactions(prev => prev.map(t => ((t as any).id === (updated as any).id ? updated : t)));
   };
 
   const handleAddInvestment = (inv: Investment) => setInvestments(prev => [...prev, inv]);
 
   const handleUpdateInvestment = (updatedInv: Investment) => {
-    setInvestments(prev => prev.map(i => i.id === updatedInv.id ? updatedInv : i).filter(i => i.quantity > 0));
+    setInvestments(prev =>
+      prev
+        .map(i => ((i as any).id === (updatedInv as any).id ? updatedInv : i))
+        .filter(i => Number((i as any).quantity ?? 0) > 0)
+    );
   };
 
   const handleDeleteInvestment = (id: string) => {
-    const inv = investments.find(i => i.id === id);
-    requestDelete('¿Eliminar Inversión?', `¿Quitar "${inv?.name}" de tu cartera?`, () => setInvestments(prev => prev.filter(i => i.id !== id)));
+    const inv = investments.find(i => (i as any).id === id);
+    requestDelete(
+      '¿Eliminar Inversión?',
+      `¿Quitar "${(inv as any)?.name}" de tu cartera?`,
+      () => setInvestments(prev => prev.filter(i => (i as any).id !== id))
+    );
   };
 
   const handleAddBudget = (b: Omit<Budget, 'id'>) => {
     setBudgets(prev => {
-      const filtered = prev.filter(item => !(item.category === b.category && item.month === selectedMonth));
-      return [...filtered, { ...b, id: crypto.randomUUID(), month: selectedMonth }];
+      const filtered = prev.filter(item => !((item as any).category === (b as any).category && (item as any).month === selectedMonth));
+      return [...filtered, { ...(b as any), id: crypto.randomUUID(), month: selectedMonth } as Budget];
     });
   };
 
   const handleDeleteBudget = (id: string) => {
-    requestDelete('¿Eliminar Presupuesto?', 'El límite será eliminado.', () => setBudgets(prev => prev.filter(item => item.id !== id)));
+    requestDelete('¿Eliminar Presupuesto?', 'El límite será eliminado.', () => setBudgets(prev => prev.filter(item => (item as any).id !== id)));
   };
 
   const changeMonth = (offset: number) => {
@@ -458,22 +553,30 @@ const App: React.FC = () => {
   const handleLogout = () => {
     localStorage.removeItem('f360_user');
     setCurrentUser(null);
-
-    setAccounts([]);
-    setTransactions([]);
-    setInvestments([]);
-    setBudgets([]);
-    setExpenseCategories(DEFAULT_EXPENSE_CATEGORIES);
-    setIncomeCategories(DEFAULT_INCOME_CATEGORIES);
-
-    setIsDataReady(false);
-    setCloudStatus('idle');
-    loadedUserIdRef.current = null;
-    lastPersistedRef.current = '';
-
-    setActiveView('dashboard');
-    setIsMobileMenuOpen(false);
+    resetSessionState();
   };
+
+  const handleSelfDeleteAccount = useCallback(async () => {
+    if (!currentUser) return;
+
+    const userToDelete = currentUser;
+
+    setIsDeletingAccount(true);
+    try {
+      await deleteFromCloud(userToDelete);
+    } catch (e) {
+      console.warn('No se pudo completar borrado en nube, se continuará con borrado local:', e);
+    } finally {
+      // borrado local total del usuario
+      localStorage.removeItem(`f360_data_${String((userToDelete as any).id || '')}`);
+      removeUserFromRegistries(userToDelete);
+      localStorage.removeItem('f360_user');
+
+      setCurrentUser(null);
+      resetSessionState();
+      setIsDeletingAccount(false);
+    }
+  }, [currentUser, deleteFromCloud, resetSessionState]);
 
   if (!currentUser) return <Auth onSelectUser={setCurrentUser} />;
 
@@ -517,11 +620,11 @@ const App: React.FC = () => {
           {/* Usuario */}
           <div className="mb-8 p-5 bg-slate-50 rounded-[2rem] border border-slate-100 flex items-center space-x-4">
             <div className="w-11 h-11 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center text-slate-400 font-black shadow-sm">
-              {currentUser.name.charAt(0).toUpperCase()}
+              {String((currentUser as any).name || '?').charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-black truncate text-slate-900">{currentUser.name}</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{currentUser.email}</p>
+              <p className="text-sm font-black truncate text-slate-900">{(currentUser as any).name}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate">{(currentUser as any).email}</p>
             </div>
           </div>
 
@@ -550,7 +653,7 @@ const App: React.FC = () => {
             <NavItem active={activeView === 'settings'} onClick={() => { setActiveView('settings'); setIsMobileMenuOpen(false); }} icon={<Settings2 size={20} />} label="Categorías" />
           </nav>
 
-          <div className="mt-6 space-y-4 pt-4 border-t border-slate-50">
+          <div className="mt-6 space-y-3 pt-4 border-t border-slate-50">
             <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
               <div className="flex items-center justify-between">
                 <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white rounded-xl text-slate-400"><ChevronLeft size={16} /></button>
@@ -558,7 +661,24 @@ const App: React.FC = () => {
                 <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white rounded-xl text-slate-400"><ChevronRight size={16} /></button>
               </div>
             </div>
-            <button onClick={handleLogout} className="w-full py-3 text-[10px] font-black text-slate-300 hover:text-rose-500 uppercase tracking-widest transition-colors">Cerrar Sesión</button>
+
+            <button
+              onClick={() =>
+                requestDelete(
+                  'Darse de baja y eliminar cuenta',
+                  'Esta acción eliminará tu perfil local, tus datos guardados en este dispositivo y cerrará sesión. No se puede deshacer.',
+                  () => { void handleSelfDeleteAccount(); }
+                )
+              }
+              className="w-full py-3 text-[10px] font-black text-rose-400 hover:text-rose-600 uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+            >
+              <UserX size={14} />
+              Darse de baja
+            </button>
+
+            <button onClick={handleLogout} className="w-full py-3 text-[10px] font-black text-slate-300 hover:text-rose-500 uppercase tracking-widest transition-colors">
+              Cerrar Sesión
+            </button>
           </div>
         </div>
       </aside>
@@ -568,6 +688,12 @@ const App: React.FC = () => {
           {isLoadingCloud && (
             <div className="bg-white border border-slate-100 rounded-2xl px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400">
               Sincronizando datos con la nube...
+            </div>
+          )}
+
+          {isDeletingAccount && (
+            <div className="bg-rose-50 border border-rose-100 rounded-2xl px-4 py-3 text-xs font-bold uppercase tracking-wider text-rose-600">
+              Eliminando cuenta...
             </div>
           )}
 
@@ -590,16 +716,101 @@ const App: React.FC = () => {
           )}
         </div>
 
-        <div className="max-w-7xl mx-auto space-y-12">
-          {activeView === 'dashboard' && <Dashboard accounts={accounts} transactions={transactions} investments={investments} budgets={budgets} selectedMonth={selectedMonth} exchangeRate={exchangeRate} rateSourceUrl={rateSourceUrl} onSyncRate={fetchRate} isSyncingRate={isSyncingRate} />}
-          {activeView === 'accounts' && <AccountsList accounts={accounts} onAdd={handleAddAccount} onDelete={handleDeleteAccount} />}
-          {activeView === 'transactions' && <TransactionsLog transactions={transactions} accounts={accounts} onAdd={handleAddTransaction} onDelete={handleDeleteTransaction} selectedMonth={selectedMonth} exchangeRate={exchangeRate} expenseCategories={expenseCategories} incomeCategories={incomeCategories} />}
-          {activeView === 'work' && <WorkManagement transactions={transactions} onUpdateTransaction={handleUpdateTransaction} exchangeRate={exchangeRate} />}
-          {activeView === 'custody' && <CustodyManagement transactions={transactions} exchangeRate={exchangeRate} />}
-          {activeView === 'ai' && <AIInsights transactions={transactions} budgets={budgets} investments={investments} selectedMonth={selectedMonth} />}
-          {activeView === 'portfolio' && <Portfolio investments={investments} accounts={accounts} onAdd={handleAddInvestment} onUpdate={handleUpdateInvestment} onDelete={handleDeleteInvestment} onAddTransaction={handleAddTransaction} exchangeRate={exchangeRate} />}
-          {activeView === 'budget' && <BudgetView budgets={budgets} transactions={transactions} onAdd={handleAddBudget} onDelete={handleDeleteBudget} exchangeRate={exchangeRate} selectedMonth={selectedMonth} expenseCategories={expenseCategories} />}
-          {activeView === 'settings' && <CategorySettings expenseCategories={expenseCategories} incomeCategories={incomeCategories} onUpdateExpenses={setExpenseCategories} onUpdateIncome={setIncomeCategories} />}
+        <div className="max-w-7xl mx-auto space-y-8 md:space-y-10">
+          {activeView === 'dashboard' && (
+            <section className="bg-white border border-slate-100 rounded-3xl p-6 md:p-7 shadow-sm">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.2em] font-black text-slate-400">Monto de inversión</p>
+                  <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 mt-1">
+                    {formatCurrency(totalInvestmentUSD, 'USD')}
+                  </h2>
+                  <p className="text-sm font-semibold text-slate-500 mt-1">
+                    Equivalente aprox.: {formatCurrency(totalInvestmentVES, 'VES')}
+                  </p>
+                </div>
+                <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <TrendingUp size={26} />
+                </div>
+              </div>
+            </section>
+          )}
+
+          <div className="space-y-12">
+            {activeView === 'dashboard' && (
+              <Dashboard
+                accounts={accounts}
+                transactions={transactions}
+                investments={investments}
+                budgets={budgets}
+                selectedMonth={selectedMonth}
+                exchangeRate={exchangeRate}
+                rateSourceUrl={rateSourceUrl}
+                onSyncRate={fetchRate}
+                isSyncingRate={isSyncingRate}
+              />
+            )}
+
+            {activeView === 'accounts' && <AccountsList accounts={accounts} onAdd={handleAddAccount} onDelete={handleDeleteAccount} />}
+
+            {activeView === 'transactions' && (
+              <TransactionsLog
+                transactions={transactions}
+                accounts={accounts}
+                onAdd={handleAddTransaction}
+                onDelete={handleDeleteTransaction}
+                selectedMonth={selectedMonth}
+                exchangeRate={exchangeRate}
+                expenseCategories={expenseCategories}
+                incomeCategories={incomeCategories}
+              />
+            )}
+
+            {activeView === 'work' && (
+              <WorkManagement transactions={transactions} onUpdateTransaction={handleUpdateTransaction} exchangeRate={exchangeRate} />
+            )}
+
+            {activeView === 'custody' && (
+              <CustodyManagement transactions={transactions} exchangeRate={exchangeRate} />
+            )}
+
+            {activeView === 'ai' && (
+              <AIInsights transactions={transactions} budgets={budgets} investments={investments} selectedMonth={selectedMonth} />
+            )}
+
+            {activeView === 'portfolio' && (
+              <Portfolio
+                investments={investments}
+                accounts={accounts}
+                onAdd={handleAddInvestment}
+                onUpdate={handleUpdateInvestment}
+                onDelete={handleDeleteInvestment}
+                onAddTransaction={handleAddTransaction}
+                exchangeRate={exchangeRate}
+              />
+            )}
+
+            {activeView === 'budget' && (
+              <BudgetView
+                budgets={budgets}
+                transactions={transactions}
+                onAdd={handleAddBudget}
+                onDelete={handleDeleteBudget}
+                exchangeRate={exchangeRate}
+                selectedMonth={selectedMonth}
+                expenseCategories={expenseCategories}
+              />
+            )}
+
+            {activeView === 'settings' && (
+              <CategorySettings
+                expenseCategories={expenseCategories}
+                incomeCategories={incomeCategories}
+                onUpdateExpenses={setExpenseCategories}
+                onUpdateIncome={setIncomeCategories}
+              />
+            )}
+          </div>
         </div>
       </main>
 

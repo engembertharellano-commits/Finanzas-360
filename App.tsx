@@ -528,7 +528,8 @@ const App: React.FC = () => {
           }
 
           if (tx.type === 'Transferencia') {
-            return { ...acc, balance: acc.balance - direction * tx.amount };
+            // ✅ Origen descuenta monto + comisión
+            return { ...acc, balance: acc.balance - direction * (tx.amount + comm) };
           }
 
           if (tx.type === 'Ajuste') {
@@ -539,7 +540,8 @@ const App: React.FC = () => {
 
         // Cuenta destino en transferencia
         if (tx.type === 'Transferencia' && acc.id === tx.toAccountId) {
-          return { ...acc, balance: acc.balance + direction * (arrivalAmount - comm) };
+          // ✅ Destino recibe el monto completo (la comisión NO reduce llegada)
+          return { ...acc, balance: acc.balance + direction * arrivalAmount };
         }
 
         return acc;

@@ -317,6 +317,43 @@ const App: React.FC = () => {
     setConfirmModal({ isOpen: true, title, message, onConfirm });
   };
 
+  // =========================
+  // SOLUCIÓN 1: impacto contable unificado para add/delete/update de transacciones
+  // =========================
+  const applyTransactionImpact = useCallback(
+    (accountsList: BankAccount[], tx: Transaction, direction: 1 | -1 = 1): BankAccount[] => {
+      const comm = tx.commission ?? 0;
+      const arrivalAmount = tx.targetAmount ?? tx.amount;
+
+      return accountsList.map((acc) => {
+        // Cuenta origen
+        if (acc.id === tx.accountId) {
+          if (tx.type === 'Gasto') {
+            return { ...acc, balance: acc.balance - direction * (tx.amount + comm) };
+          }
+          if (tx.type === 'Ingreso') {
+            return { ...acc, balance: acc.balance + direction * (tx.amount - comm) };
+          }
+          if (tx.type === 'Transferencia') {
+            return { ...acc, balance: acc.balance - direction * tx.amount };
+          }
+          if (tx.type === 'Ajuste') {
+            const adj = tx.adjustmentDirection === 'plus' ? tx.amount : -tx.amount;
+            return { ...acc, balance: acc.balance + direction * adj };
+          }
+        }
+
+        // Cuenta destino (solo transferencia)
+        if (tx.type === 'Transferencia' && acc.id === tx.toAccountId) {
+          return { ...acc, balance: acc.balance + direction * (arrivalAmount - comm) };
+        }
+
+        return acc;
+      });
+    },
+    []
+  );
+
   const handleAddAccount = (acc: BankAccount) => setAccounts(prev => [...prev, acc]);
 
   const handleDeleteAccount = (id: string) => {
@@ -330,25 +367,8 @@ const App: React.FC = () => {
 
   const handleAddTransaction = (tData: Omit<Transaction, 'id'>) => {
     const newT: Transaction = { ...tData, id: crypto.randomUUID() };
-    const comm = newT.commission || 0;
-
     setTransactions(prev => [newT, ...prev]);
-    setAccounts(prev => prev.map(acc => {
-      if (acc.id === newT.accountId) {
-        if (newT.type === 'Gasto') return { ...acc, balance: acc.balance - (newT.amount + comm) };
-        if (newT.type === 'Ingreso') return { ...acc, balance: acc.balance + (newT.amount - comm) };
-        if (newT.type === 'Transferencia') return { ...acc, balance: acc.balance - newT.amount };
-        if (newT.type === 'Ajuste') {
-          const change = newT.adjustmentDirection === 'plus' ? newT.amount : -newT.amount;
-          return { ...acc, balance: acc.balance + change };
-        }
-      }
-      if (newT.type === 'Transferencia' && acc.id === newT.toAccountId) {
-        const arrivalAmount = newT.targetAmount !== undefined ? newT.targetAmount : newT.amount;
-        return { ...acc, balance: acc.balance + (arrivalAmount - comm) };
-      }
-      return acc;
-    }));
+    setAccounts(prev => applyTransactionImpact(prev, newT, 1));
   };
 
   const handleDeleteTransaction = (id: string) => {
@@ -359,29 +379,23 @@ const App: React.FC = () => {
       '¿Eliminar Movimiento?',
       `Se revertirá el impacto de "${t.description}" en los saldos.`,
       () => {
-        const comm = t.commission || 0;
-        setAccounts(prev => prev.map(acc => {
-          if (acc.id === t.accountId) {
-            if (t.type === 'Gasto') return { ...acc, balance: acc.balance + (t.amount + comm) };
-            if (t.type === 'Ingreso') return { ...acc, balance: acc.balance - (t.amount - comm) };
-            if (t.type === 'Transferencia') return { ...acc, balance: acc.balance + t.amount };
-            if (t.type === 'Ajuste') {
-              const change = t.adjustmentDirection === 'plus' ? -t.amount : t.amount;
-              return { ...acc, balance: acc.balance + change };
-            }
-          }
-          if (t.type === 'Transferencia' && acc.id === t.toAccountId) {
-            const arrivalAmount = t.targetAmount !== undefined ? t.targetAmount : t.amount;
-            return { ...acc, balance: acc.balance - (arrivalAmount - comm) };
-          }
-          return acc;
-        }));
+        setAccounts(prev => applyTransactionImpact(prev, t, -1));
         setTransactions(prev => prev.filter(item => item.id !== id));
       }
     );
   };
 
   const handleUpdateTransaction = (updated: Transaction) => {
+    const original = transactions.find(t => t.id === updated.id);
+
+    // Respaldo ante condiciones de carrera
+    if (!original) {
+      setTransactions(prev => prev.map(t => t.id === updated.id ? updated : t));
+      return;
+    }
+
+    // 1) revertir impacto original, 2) aplicar impacto actualizado
+    setAccounts(prev => applyTransactionImpact(applyTransactionImpact(prev, original, -1), updated, 1));
     setTransactions(prev => prev.map(t => t.id === updated.id ? updated : t));
   };
 

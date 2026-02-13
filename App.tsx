@@ -135,6 +135,9 @@ const App: React.FC = () => {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadedUserIdRef = useRef<string | null>(null);
 
+  // SOLUCIÓN 2: snapshot serializado para evitar saves redundantes
+  const lastPersistedRef = useRef<string>('');
+
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -207,6 +210,7 @@ const App: React.FC = () => {
         loadedUserIdRef.current = null;
         setIsDataReady(false);
         setCloudStatus('idle');
+        lastPersistedRef.current = '';
         applyData(EMPTY_DATA);
         return;
       }
@@ -251,7 +255,13 @@ const App: React.FC = () => {
 
         applyData(finalData);
         localStorage.setItem('f360_user', JSON.stringify(currentUser));
-        localStorage.setItem(`f360_data_${currentUser.id}`, JSON.stringify(finalData));
+
+        const serializedFinal = JSON.stringify(finalData);
+        localStorage.setItem(`f360_data_${currentUser.id}`, serializedFinal);
+
+        // SOLUCIÓN 2: marcar snapshot cargado como "último persistido"
+        lastPersistedRef.current = serializedFinal;
+
         loadedUserIdRef.current = currentUser.id;
         setIsDataReady(true);
       } finally {
@@ -282,7 +292,14 @@ const App: React.FC = () => {
       incomeCategories
     };
 
-    localStorage.setItem(`f360_data_${localUserId}`, JSON.stringify(data));
+    const serialized = JSON.stringify(data);
+    localStorage.setItem(`f360_data_${localUserId}`, serialized);
+
+    // SOLUCIÓN 2: no guardar en nube si no hay cambios reales
+    if (serialized === lastPersistedRef.current) {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      return;
+    }
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
@@ -291,6 +308,7 @@ const App: React.FC = () => {
         setCloudStatus('saving');
         const primaryKey = getPrimaryCloudKey(currentUser);
         await saveToCloud(primaryKey, data);
+        lastPersistedRef.current = serialized; // actualizar snapshot al guardar exitosamente
         setCloudStatus('saved');
       } catch (e) {
         console.warn('No se pudo guardar en nube (se guardó local):', e);
@@ -317,9 +335,7 @@ const App: React.FC = () => {
     setConfirmModal({ isOpen: true, title, message, onConfirm });
   };
 
-  // =========================
   // SOLUCIÓN 1: impacto contable unificado para add/delete/update de transacciones
-  // =========================
   const applyTransactionImpact = useCallback(
     (accountsList: BankAccount[], tx: Transaction, direction: 1 | -1 = 1): BankAccount[] => {
       const comm = tx.commission ?? 0;
@@ -446,6 +462,7 @@ const App: React.FC = () => {
     setIsDataReady(false);
     setCloudStatus('idle');
     loadedUserIdRef.current = null;
+    lastPersistedRef.current = '';
 
     setActiveView('dashboard');
     setIsMobileMenuOpen(false);

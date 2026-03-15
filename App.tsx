@@ -336,7 +336,7 @@ const App: React.FC = () => {
   const deleteFromCloud = useCallback(async (user: User): Promise<void> => {
     const keys = Array.from(new Set([getPrimaryCloudKey(user), ...getLegacyCloudKeys(user)]));
 
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       keys.map(async (key) => {
         const resp = await fetch(`/api/state?userId=${encodeURIComponent(key)}`, { method: 'DELETE' });
         // 404/405 los tratamos como no bloqueantes
@@ -345,9 +345,19 @@ const App: React.FC = () => {
         }
       })
     );
+
+    const failures = results.filter((result) => result.status === 'rejected');
+    if (failures.length > 0) {
+      throw new Error('No se pudo eliminar completamente el estado en nube.');
+    }
   }, []);
 
   const resetSessionState = useCallback(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+
     setAccounts([]);
     setTransactions([]);
     setInvestments([]);

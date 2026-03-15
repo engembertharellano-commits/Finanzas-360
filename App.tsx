@@ -565,6 +565,20 @@ const App: React.FC = () => {
 
   const handleDeleteAccount = (id: string) => {
     const acc = accounts.find((a) => a.id === id);
+
+    const hasRelatedTransactions = transactions.some(
+      (t) => t.accountId === id || t.toAccountId === id
+    );
+
+    if (hasRelatedTransactions) {
+      requestDelete(
+        'No se puede eliminar la cuenta',
+        `La cuenta "${acc?.name}" tiene movimientos asociados. Debes eliminar o reasignar esos movimientos antes de borrarla.`,
+        () => {}
+      );
+      return;
+    }
+
     requestDelete(
       '¿Eliminar Cuenta?',
       `Estás a punto de eliminar "${acc?.name}". Esta acción también podría afectar el historial visual de tus saldos.`,

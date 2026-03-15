@@ -656,11 +656,7 @@ const App: React.FC = () => {
   };
 
   const handleUpdateInvestment = (updatedInv: Investment) => {
-    setInvestments((prev) =>
-      prev
-        .map((i) => (i.id === updatedInv.id ? updatedInv : i))
-        .filter((i) => Number(i.quantity ?? 0) > 0)
-    );
+    setInvestments((prev) => prev.map((i) => (i.id === updatedInv.id ? updatedInv : i)));
   };
 
   const handleDeleteInvestment = (id: string) => {

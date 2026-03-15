@@ -3,7 +3,7 @@ import { Investment, Currency, BankAccount, Transaction } from '../types';
 import {
   Plus, TrendingUp, Trash2, Search,
   Loader2, ChevronRight, X, Info, Building2, Coins, HandCoins,
-  ArrowUpRight, RefreshCw, CheckCircle2, Wallet, Landmark
+  ArrowUpRight, RefreshCw, CheckCircle2, Wallet, Landmark, Repeat
 } from 'lucide-react';
 import { FinanceAIService } from '../services/geminiService';
 
@@ -19,6 +19,8 @@ interface Props {
 
 type InvestmentCategory = 'Acciones / ETFs' | 'Criptomonedas' | 'Renta Fija / Préstamos' | 'Bienes Raíces' | 'Otros';
 
+type InvestmentWithSource = Investment & { sourceAccountId?: string; buyCommission?: number };
+
 export const Portfolio: React.FC<Props> = ({
   investments, accounts, onAdd, onUpdate, onDelete, onAddTransaction, exchangeRate
 }) => {
@@ -27,14 +29,22 @@ export const Portfolio: React.FC<Props> = ({
   const [isUpdatingPrices, setIsUpdatingPrices] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
 
-  const [liquidatingInv, setLiquidatingInv] = useState<Investment | null>(null);
-  const [recordingYieldInv, setRecordingYieldInv] = useState<Investment | null>(null);
+  const [liquidatingInv, setLiquidatingInv] = useState<InvestmentWithSource | null>(null);
+  const [recordingYieldInv, setRecordingYieldInv] = useState<InvestmentWithSource | null>(null);
+  const [assigningAccountInv, setAssigningAccountInv] = useState<InvestmentWithSource | null>(null);
+  const [movingInv, setMovingInv] = useState<InvestmentWithSource | null>(null);
+
   const [yieldAmount, setYieldAmount] = useState<number>(0);
 
   const [sellUnits, setSellUnits] = useState<number>(0);
   const [sellPrice, setSellPrice] = useState<number>(0);
   const [sellCommission, setSellCommission] = useState<number>(0);
   const [targetAccountId, setTargetAccountId] = useState<string>('');
+
+  const [assignAccountId, setAssignAccountId] = useState<string>('');
+
+  const [moveUnits, setMoveUnits] = useState<number>(0);
+  const [moveTargetAccountId, setMoveTargetAccountId] = useState<string>('');
 
   const [newInv, setNewInv] = useState({
     name: '',
@@ -58,8 +68,9 @@ export const Portfolio: React.FC<Props> = ({
   );
 
   const investmentRows = useMemo(() => {
-    return investments.map(inv => {
-      const linkedAccountId = (inv as Investment & { sourceAccountId?: string }).sourceAccountId || inv.brokerId || '';
+    return investments.map(rawInv => {
+      const inv = rawInv as InvestmentWithSource;
+      const linkedAccountId = inv.sourceAccountId || inv.brokerId || '';
       const linkedAccount = accounts.find(a => a.id === linkedAccountId);
       const currentValue = typeof inv.value === 'number' && Number.isFinite(inv.value) ? inv.value : 0;
       const invested = typeof inv.initialInvestment === 'number' && Number.isFinite(inv.initialInvestment) ? inv.initialInvestment : 0;
@@ -73,6 +84,40 @@ export const Portfolio: React.FC<Props> = ({
       };
     });
   }, [investments, accounts]);
+
+  const getLinkedAccount = (inv: InvestmentWithSource) => {
+    const linkedAccountId = inv.sourceAccountId || inv.brokerId || '';
+    return accounts.find(a => a.id === linkedAccountId);
+  };
+
+  const findMatchingInvestmentInAccount = (
+    accountId: string,
+    candidate: {
+      ticker?: string;
+      name: string;
+      category: InvestmentCategory;
+      currency: Currency;
+    },
+    excludeId?: string
+  ) => {
+    const normalizedTicker = String(candidate.ticker || '').trim().toUpperCase();
+    const normalizedName = candidate.name.trim().toLowerCase();
+
+    return investments.find(rawInv => {
+      const inv = rawInv as InvestmentWithSource;
+      if (excludeId && inv.id === excludeId) return false;
+
+      const invAccountId = inv.sourceAccountId || inv.brokerId || '';
+      if (invAccountId !== accountId) return false;
+      if (inv.category !== candidate.category) return false;
+      if (inv.currency !== candidate.currency) return false;
+
+      const invTicker = String(inv.ticker || '').trim().toUpperCase();
+      if (normalizedTicker) return invTicker === normalizedTicker;
+
+      return inv.name.trim().toLowerCase() === normalizedName;
+    }) as InvestmentWithSource | undefined;
+  };
 
   const handleCalculation = (field: 'capital' | 'price' | 'units', value: number) => {
     setNewInv(prev => {
@@ -177,28 +222,20 @@ export const Portfolio: React.FC<Props> = ({
 
     const linkedBrokerId = sourceAcc.type === 'Broker' ? sourceAcc.id : undefined;
 
-    const existingInvestment = investments.find(inv => {
-      const invSourceAccountId = (inv as Investment & { sourceAccountId?: string }).sourceAccountId || '';
-      const sameAccount = invSourceAccountId === newInv.sourceAccountId || inv.brokerId === newInv.sourceAccountId;
-
-      if (!sameAccount) return false;
-      if (inv.category !== newInv.category) return false;
-      if (inv.currency !== newInv.currency) return false;
-
-      const normalizedTicker = newInv.ticker.trim().toUpperCase();
-      const invTicker = String(inv.ticker || '').trim().toUpperCase();
-
-      if (normalizedTicker) {
-        return invTicker === normalizedTicker;
+    const existingInvestment = findMatchingInvestmentInAccount(
+      newInv.sourceAccountId,
+      {
+        ticker: newInv.ticker,
+        name: safeName,
+        category: newInv.category,
+        currency: newInv.currency
       }
-
-      return inv.name.trim().toLowerCase() === safeName.toLowerCase();
-    });
+    );
 
     if (existingInvestment) {
       const prevQuantity = Number(existingInvestment.quantity || 0);
       const prevInvestment = Number(existingInvestment.initialInvestment || 0);
-      const prevCommission = Number((existingInvestment as Investment & { buyCommission?: number }).buyCommission || 0);
+      const prevCommission = Number(existingInvestment.buyCommission || 0);
 
       const addedQuantity = Number(newInv.quantity || 0);
       const addedInvestment = Number(newInv.initialInvestment || 0);
@@ -277,6 +314,135 @@ export const Portfolio: React.FC<Props> = ({
       yieldPeriod: 'Anual',
       date: new Date().toISOString().split('T')[0]
     });
+  };
+
+  const handleAssignAccount = () => {
+    if (!assigningAccountInv || !assignAccountId) return;
+
+    const targetAccount = accounts.find(a => a.id === assignAccountId);
+    if (!targetAccount) return;
+
+    onUpdate({
+      ...assigningAccountInv,
+      sourceAccountId: assignAccountId,
+      brokerId: targetAccount.type === 'Broker' ? targetAccount.id : undefined
+    } as Investment);
+
+    setAssigningAccountInv(null);
+    setAssignAccountId('');
+  };
+
+  const handleMoveInvestment = () => {
+    if (!movingInv || !moveTargetAccountId || moveUnits <= 0) return;
+
+    const originQuantity = Number(movingInv.quantity || 0);
+    if (originQuantity <= 0) return;
+
+    const safeMoveUnits = Math.min(moveUnits, originQuantity);
+    const targetAccount = accounts.find(a => a.id === moveTargetAccountId);
+    if (!targetAccount) return;
+
+    const originAccountId = movingInv.sourceAccountId || movingInv.brokerId || '';
+    if (moveTargetAccountId === originAccountId) {
+      alert('⚠️ Debes seleccionar una cuenta distinta a la de origen.');
+      return;
+    }
+
+    if (targetAccount.currency !== movingInv.currency) {
+      alert('⚠️ La cuenta destino debe tener la misma moneda del activo.');
+      return;
+    }
+
+    const moveRatio = safeMoveUnits / originQuantity;
+    const proportionalInitialInvestment = Number(movingInv.initialInvestment || 0) * moveRatio;
+    const proportionalValue = Number(movingInv.value || 0) * moveRatio;
+    const proportionalCommission = Number(movingInv.buyCommission || 0) * moveRatio;
+
+    const remainingQuantity = originQuantity - safeMoveUnits;
+    const remainingInitialInvestment = Math.max(0, Number(movingInv.initialInvestment || 0) - proportionalInitialInvestment);
+    const remainingValue = Math.max(0, Number(movingInv.value || 0) - proportionalValue);
+    const remainingCommission = Math.max(0, Number(movingInv.buyCommission || 0) - proportionalCommission);
+
+    const destinationMatch = findMatchingInvestmentInAccount(
+      moveTargetAccountId,
+      {
+        ticker: movingInv.ticker,
+        name: movingInv.name,
+        category: movingInv.category as InvestmentCategory,
+        currency: movingInv.currency
+      },
+      movingInv.id
+    );
+
+    if (destinationMatch) {
+      const destPrevQuantity = Number(destinationMatch.quantity || 0);
+      const destPrevInvestment = Number(destinationMatch.initialInvestment || 0);
+      const destPrevCommission = Number(destinationMatch.buyCommission || 0);
+
+      const destinationTotalQuantity = destPrevQuantity + safeMoveUnits;
+      const destinationTotalInvestment = destPrevInvestment + proportionalInitialInvestment;
+      const destinationTotalCommission = destPrevCommission + proportionalCommission;
+
+      const destinationWeightedBuyPrice =
+        destinationTotalQuantity > 0
+          ? ((destPrevQuantity * Number(destinationMatch.buyPrice || 0)) + (safeMoveUnits * Number(movingInv.buyPrice || 0))) / destinationTotalQuantity
+          : 0;
+
+      const destinationMarketPrice = Number(destinationMatch.currentMarketPrice || movingInv.currentMarketPrice || movingInv.buyPrice || 0);
+      const destinationValue = Number(destinationMatch.value || 0) + proportionalValue;
+      const destinationPerformance = destinationWeightedBuyPrice > 0
+        ? ((destinationMarketPrice - destinationWeightedBuyPrice) / destinationWeightedBuyPrice) * 100
+        : 0;
+
+      onUpdate({
+        ...destinationMatch,
+        quantity: destinationTotalQuantity,
+        initialInvestment: destinationTotalInvestment,
+        buyCommission: destinationTotalCommission,
+        buyPrice: destinationWeightedBuyPrice,
+        currentMarketPrice: destinationMarketPrice,
+        value: destinationValue,
+        performance: destinationPerformance,
+        sourceAccountId: moveTargetAccountId,
+        brokerId: targetAccount.type === 'Broker' ? targetAccount.id : undefined
+      } as Investment);
+    } else {
+      onAdd({
+        ...movingInv,
+        id: crypto.randomUUID(),
+        sourceAccountId: moveTargetAccountId,
+        brokerId: targetAccount.type === 'Broker' ? targetAccount.id : undefined,
+        quantity: safeMoveUnits,
+        initialInvestment: proportionalInitialInvestment,
+        buyCommission: proportionalCommission,
+        value: proportionalValue,
+        performance: movingInv.buyPrice > 0
+          ? (((movingInv.currentMarketPrice || movingInv.buyPrice) - movingInv.buyPrice) / movingInv.buyPrice) * 100
+          : 0
+      } as Investment);
+    }
+
+    if (remainingQuantity <= 0.0000000001) {
+      onDelete(movingInv.id);
+    } else {
+      const originMarketPrice = Number(movingInv.currentMarketPrice || movingInv.buyPrice || 0);
+      const originPerformance = Number(movingInv.buyPrice || 0) > 0
+        ? ((originMarketPrice - Number(movingInv.buyPrice || 0)) / Number(movingInv.buyPrice || 0)) * 100
+        : 0;
+
+      onUpdate({
+        ...movingInv,
+        quantity: remainingQuantity,
+        initialInvestment: remainingInitialInvestment,
+        buyCommission: remainingCommission,
+        value: remainingValue,
+        performance: originPerformance
+      } as Investment);
+    }
+
+    setMovingInv(null);
+    setMoveUnits(0);
+    setMoveTargetAccountId('');
   };
 
   const handleSell = () => {
@@ -375,7 +541,7 @@ export const Portfolio: React.FC<Props> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Cuenta de Origen</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Wallet / Cuenta de Origen</label>
                 <select
                   className="w-full px-6 py-4 rounded-2xl bg-blue-50 border-2 border-blue-100 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-900"
                   value={newInv.sourceAccountId}
@@ -472,9 +638,9 @@ export const Portfolio: React.FC<Props> = ({
       {!showForm && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {investments.map(inv => {
-              const linkedAccountId = (inv as Investment & { sourceAccountId?: string }).sourceAccountId || inv.brokerId || '';
-              const linkedAccount = accounts.find(a => a.id === linkedAccountId);
+            {investments.map(rawInv => {
+              const inv = rawInv as InvestmentWithSource;
+              const linkedAccount = getLinkedAccount(inv);
 
               return (
                 <div key={inv.id} className="bg-white p-7 rounded-[3rem] border border-slate-100 shadow-sm flex flex-col gap-6 group hover:shadow-xl transition-all">
@@ -544,7 +710,7 @@ export const Portfolio: React.FC<Props> = ({
 
                   <div className="flex flex-wrap gap-2 mt-auto">
                     <button
-                      onClick={() => { setRecordingYieldInv(inv); setTargetAccountId(((inv as Investment & { sourceAccountId?: string }).sourceAccountId || inv.brokerId || '')); }}
+                      onClick={() => { setRecordingYieldInv(inv); setTargetAccountId((inv.sourceAccountId || inv.brokerId || '')); }}
                       className="flex-1 bg-emerald-500 text-white px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100"
                     >
                       <ArrowUpRight size={14} /> Rendimiento
@@ -554,11 +720,30 @@ export const Portfolio: React.FC<Props> = ({
                         setLiquidatingInv(inv);
                         setSellUnits(inv.quantity);
                         setSellPrice(inv.currentMarketPrice || inv.buyPrice || inv.initialInvestment);
-                        setTargetAccountId(((inv as Investment & { sourceAccountId?: string }).sourceAccountId || inv.brokerId || ''));
+                        setTargetAccountId((inv.sourceAccountId || inv.brokerId || ''));
                       }}
                       className="flex-1 bg-slate-900 text-white px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-slate-800 transition-all shadow-lg"
                     >
                       Liquidar
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAssigningAccountInv(inv);
+                        setAssignAccountId(inv.sourceAccountId || inv.brokerId || '');
+                      }}
+                      className="flex-1 bg-blue-50 text-blue-600 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-blue-100 transition-all"
+                    >
+                      <Wallet size={14} /> Wallet
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMovingInv(inv);
+                        setMoveUnits(inv.quantity);
+                        setMoveTargetAccountId('');
+                      }}
+                      className="flex-1 bg-violet-50 text-violet-600 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-violet-100 transition-all"
+                    >
+                      <Repeat size={14} /> Mover
                     </button>
                     <button onClick={() => onDelete(inv.id)} className="p-2.5 text-slate-300 hover:text-rose-500 bg-slate-50 rounded-2xl transition-colors"><Trash2 size={20} /></button>
                   </div>
@@ -640,6 +825,103 @@ export const Portfolio: React.FC<Props> = ({
             )}
           </div>
         </>
+      )}
+
+      {assigningAccountInv && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-[3.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300 border-4 border-blue-500/10">
+            <div className="p-10 space-y-8">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-3xl font-black text-slate-900">Asignar Wallet</h3>
+                  <p className="text-blue-500 font-bold uppercase text-[10px] tracking-widest mt-1">{assigningAccountInv.name}</p>
+                </div>
+                <button onClick={() => setAssigningAccountInv(null)} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors"><X size={24} /></button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block ml-4">Selecciona la cuenta / wallet</label>
+                <select
+                  className="w-full px-8 py-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-slate-900"
+                  value={assignAccountId}
+                  onChange={e => setAssignAccountId(e.target.value)}
+                >
+                  <option value="">-- Selecciona cuenta --</option>
+                  {accounts.filter(a => a.currency === assigningAccountInv.currency).map(a => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.type})</option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={handleAssignAccount}
+                disabled={!assignAccountId}
+                className="w-full py-6 rounded-[2.5rem] font-black text-xl transition-all shadow-xl bg-blue-600 shadow-blue-100 text-white hover:bg-blue-700 disabled:opacity-50 disabled:shadow-none"
+              >
+                Guardar Wallet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {movingInv && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-lg rounded-[3.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300 border-4 border-violet-500/10">
+            <div className="p-10 space-y-8">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-3xl font-black text-slate-900">Mover Activo</h3>
+                  <p className="text-violet-500 font-bold uppercase text-[10px] tracking-widest mt-1">{movingInv.name}</p>
+                </div>
+                <button onClick={() => setMovingInv(null)} className="p-2 bg-slate-50 rounded-full hover:bg-slate-100 transition-colors"><X size={24} /></button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2 text-center">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Cantidad a mover</label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    className="w-full py-5 text-center rounded-[2rem] bg-slate-50 font-black text-2xl outline-none border border-transparent focus:border-violet-500"
+                    value={moveUnits}
+                    onChange={e => setMoveUnits(Math.min(parseFloat(e.target.value) || 0, movingInv.quantity))}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest block ml-4">Wallet / cuenta destino</label>
+                  <select
+                    className="w-full px-8 py-4 rounded-2xl bg-slate-50 border-none outline-none font-bold text-slate-900"
+                    value={moveTargetAccountId}
+                    onChange={e => setMoveTargetAccountId(e.target.value)}
+                  >
+                    <option value="">-- Selecciona cuenta destino --</option>
+                    {accounts
+                      .filter(a => a.currency === movingInv.currency && a.id !== (movingInv.sourceAccountId || movingInv.brokerId || ''))
+                      .map(a => (
+                        <option key={a.id} value={a.id}>{a.name} ({a.type})</option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="bg-violet-50 rounded-[2rem] p-6 border border-violet-100">
+                <p className="text-sm font-bold text-violet-700">
+                  Este movimiento transfiere el activo entre wallets/cuentas sin registrar ingreso ni gasto de caja.
+                </p>
+              </div>
+
+              <button
+                onClick={handleMoveInvestment}
+                disabled={moveUnits <= 0 || !moveTargetAccountId}
+                className="w-full py-6 rounded-[2.5rem] font-black text-xl transition-all shadow-xl bg-violet-600 shadow-violet-100 text-white hover:bg-violet-700 disabled:opacity-50 disabled:shadow-none"
+              >
+                Mover Activo <Repeat size={22} className="inline ml-2" />
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {recordingYieldInv && (

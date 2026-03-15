@@ -523,27 +523,45 @@ const App: React.FC = () => {
 
   const applyTransactionImpact = useCallback(
     (accountsList: BankAccount[], tx: Transaction, direction: 1 | -1 = 1): BankAccount[] => {
-      const comm = tx.commission ?? 0;
-      const arrivalAmount = tx.targetAmount ?? tx.amount;
+      const safeAmount =
+        typeof tx.amount === 'number' && Number.isFinite(tx.amount) && tx.amount >= 0 ? tx.amount : null;
+
+      if (safeAmount === null) {
+        return accountsList;
+      }
+
+      const safeCommission =
+        typeof tx.commission === 'number' && Number.isFinite(tx.commission) && tx.commission >= 0
+          ? tx.commission
+          : 0;
+
+      const safeArrivalAmount =
+        typeof tx.targetAmount === 'number' && Number.isFinite(tx.targetAmount) && tx.targetAmount >= 0
+          ? tx.targetAmount
+          : safeAmount;
+
+      if (tx.type === 'Transferencia' && !tx.toAccountId) {
+        return accountsList;
+      }
 
       return accountsList.map((acc) => {
         // Cuenta origen / principal
         if (acc.id === tx.accountId) {
           if (tx.type === 'Gasto') {
-            return { ...acc, balance: acc.balance - direction * (tx.amount + comm) };
+            return { ...acc, balance: acc.balance - direction * (safeAmount + safeCommission) };
           }
 
           if (tx.type === 'Ingreso') {
-            return { ...acc, balance: acc.balance + direction * (tx.amount - comm) };
+            return { ...acc, balance: acc.balance + direction * (safeAmount - safeCommission) };
           }
 
           if (tx.type === 'Transferencia') {
             // ✅ Origen descuenta monto + comisión
-            return { ...acc, balance: acc.balance - direction * (tx.amount + comm) };
+            return { ...acc, balance: acc.balance - direction * (safeAmount + safeCommission) };
           }
 
           if (tx.type === 'Ajuste') {
-            const adj = tx.adjustmentDirection === 'minus' ? -tx.amount : tx.amount;
+            const adj = tx.adjustmentDirection === 'minus' ? -safeAmount : safeAmount;
             return { ...acc, balance: acc.balance + direction * adj };
           }
         }
@@ -551,7 +569,7 @@ const App: React.FC = () => {
         // Cuenta destino en transferencia
         if (tx.type === 'Transferencia' && acc.id === tx.toAccountId) {
           // ✅ Destino recibe el monto completo (la comisión NO reduce llegada)
-          return { ...acc, balance: acc.balance + direction * arrivalAmount };
+          return { ...acc, balance: acc.balance + direction * safeArrivalAmount };
         }
 
         return acc;

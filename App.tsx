@@ -39,6 +39,7 @@ import { WorkManagement } from './components/WorkManagement';
 import { CustodyManagement } from './components/CustodyManagement';
 import { Auth } from './components/Auth';
 import { FinanceAIService } from './services/geminiService';
+import { FinancialPlanning } from './components/planning/FinancialPlanning';
 
 type View =
   | 'dashboard'

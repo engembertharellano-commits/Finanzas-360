@@ -133,3 +133,24 @@ export const DEFAULT_INCOME_CATEGORIES: string[] = [
   'Regalos',
   'Otros'
 ];
+
+export type FinancialPlan = {
+  id: string;
+  name: string;
+
+  initialAmount: number;
+  monthlyContribution: number;
+
+  annualInterestRate: number;
+
+  durationMonths: number;
+
+  goalAmount?: number;
+
+  type: 'general' | 'real_estate';
+
+  // Solo bienes raíces
+  propertyValue?: number;
+  downPayment?: number;
+  monthlyRent?: number;
+};

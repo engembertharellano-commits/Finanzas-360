@@ -50,7 +50,8 @@ type View =
   | 'ai'
   | 'settings'
   | 'work'
-  | 'custody';
+  | 'custody'
+  | 'planning';
 
 type PersistedFinanceData = {
   accounts: BankAccount[];

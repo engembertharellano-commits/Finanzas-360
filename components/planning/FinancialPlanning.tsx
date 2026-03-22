@@ -27,15 +27,15 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 
-// Ahora recibe savedPlans (array) y onDelete
+// Recibe onSave, onDelete y la lista savedPlans desde App.tsx
 export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSave: (plan: any) => void, onDelete: (id: string) => void, savedPlans: any[] }) => {
   const [mode, setMode] = useState<'simulate' | 'goal'>('simulate');
   const [showList, setShowList] = useState(false);
 
-  // Plantilla para un plan nuevo
+  // Función para generar la estructura de un plan totalmente nuevo
   const createEmptyPlan = () => ({
     id: crypto.randomUUID(),
-    name: 'Nuevo Plan',
+    name: 'Nuevo Plan ' + (savedPlans.length + 1),
     initialAmount: 1000,
     monthlyContribution: 200,
     annualInterestRate: 10,
@@ -47,13 +47,26 @@ export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSav
     monthlyRent: 0
   });
 
-  // Estado inicial: el primer plan guardado o uno vacío
+  // Estado del plan activo (carga el primero de la lista si existe, sino uno vacío)
   const [plan, setPlan] = useState(savedPlans.length > 0 ? savedPlans[0] : createEmptyPlan());
 
-  // Sincronizar si se selecciona un plan de la lista
+  // Manejador para seleccionar un plan guardado
   const handleSelectPlan = (p: any) => {
     setPlan(p);
     setShowList(false);
+  };
+
+  // Función de Guardado con VALIDACIÓN
+  const handleConfirmSave = () => {
+    const isUpdate = savedPlans.some(p => p.id === plan.id);
+    const message = isUpdate 
+      ? `¿Deseas actualizar los cambios en el plan "${plan.name}"?` 
+      : `¿Deseas guardar "${plan.name}" como un nuevo plan en tu lista?`;
+
+    if (window.confirm(message)) {
+      onSave(plan);
+      setShowList(false);
+    }
   };
 
   // Lógica inversa para Modo Meta
@@ -143,8 +156,10 @@ export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSav
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDelete(p.id);
-                          if(plan.id === p.id) setPlan(createEmptyPlan());
+                          if(window.confirm(`¿Seguro que quieres borrar "${p.name}"?`)) {
+                            onDelete(p.id);
+                            if(plan.id === p.id) setPlan(createEmptyPlan());
+                          }
                         }}
                         className="ml-2 p-1.5 text-slate-300 hover:text-rose-500 transition-colors"
                       >
@@ -173,9 +188,9 @@ export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSav
             <Zap size={14} /> META
           </button>
 
-          {/* BOTÓN GUARDAR */}
+          {/* BOTÓN GUARDAR CON VALIDACIÓN */}
           <button 
-            onClick={() => { onSave(plan); setShowList(false); }}
+            onClick={handleConfirmSave}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-100 transition-all"
           >
             <Save size={14} /> GUARDAR
@@ -274,7 +289,6 @@ export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSav
         )}
       </div>
 
-      {/* STATUS DE LA META */}
       {plan.goalAmount > 0 && (
         <div className={`p-6 rounded-[2rem] flex items-center gap-5 border transition-all ${
           summary.finalBalance >= plan.goalAmount 
@@ -305,7 +319,7 @@ export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSav
         </div>
       )}
 
-      {/* RESUMEN DE NÚMEROS */}
+      {/* RESULTADOS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className={cardClass}>
           <p className={labelClass}>Total Final</p>
@@ -321,14 +335,13 @@ export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSav
         </div>
       </div>
 
-      {/* GRÁFICA Y DETALLE MES A MES */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className={`${cardClass} lg:col-span-2 overflow-hidden flex flex-col`}>
           <div className="flex items-center gap-3 mb-6">
             <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500">
               <BarChart3 size={18} />
             </div>
-            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Evolución del Patrimonio</h3>
+            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Evolución de Patrimonio</h3>
           </div>
           
           <div className="flex-1 h-80 lg:h-full min-h-[320px] -ml-6 -mb-2 mt-2">

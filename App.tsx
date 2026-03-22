@@ -61,7 +61,7 @@ type PersistedFinanceData = {
   budgets: Budget[];
   expenseCategories: string[];
   incomeCategories: string[];
-  financialPlan?: any; // Agregado para persistencia
+  financialPlans?: any[]; // Modificado a array para múltiples planes
 };
 
 type CloudStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -73,7 +73,7 @@ const EMPTY_DATA: PersistedFinanceData = {
   budgets: [],
   expenseCategories: DEFAULT_EXPENSE_CATEGORIES,
   incomeCategories: DEFAULT_INCOME_CATEGORIES,
-  financialPlan: null // Inicializado
+  financialPlans: [] // Inicializado como lista vacía
 };
 
 const USER_REGISTRY_KEYS = ['f360_users', 'f360_users_list', 'finanza360_users', 'users'];
@@ -100,7 +100,7 @@ const normalizeData = (input: unknown): PersistedFinanceData => {
     incomeCategories: Array.isArray(data?.incomeCategories)
       ? data.incomeCategories
       : DEFAULT_INCOME_CATEGORIES,
-    financialPlan: data?.financialPlan || null // Procesado de carga
+    financialPlans: Array.isArray(data?.financialPlans) ? data.financialPlans : [] // Carga de lista
   };
 };
 
@@ -264,8 +264,8 @@ const App: React.FC = () => {
   const [expenseCategories, setExpenseCategories] = useState<string[]>(DEFAULT_EXPENSE_CATEGORIES);
   const [incomeCategories, setIncomeCategories] = useState<string[]>(DEFAULT_INCOME_CATEGORIES);
   
-  // Estado global para el plan
-  const [financialPlan, setFinancialPlan] = useState<any>(null);
+  // Estado para múltiples planes financieros
+  const [financialPlans, setFinancialPlans] = useState<any[]>([]);
 
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
@@ -296,7 +296,7 @@ const App: React.FC = () => {
     setBudgets(clean.budgets);
     setExpenseCategories(clean.expenseCategories);
     setIncomeCategories(clean.incomeCategories);
-    setFinancialPlan(clean.financialPlan); // Carga el plan
+    setFinancialPlans(clean.financialPlans || []); // Carga la lista
   }, []);
 
   const fetchRate = useCallback(async () => {
@@ -366,7 +366,7 @@ const App: React.FC = () => {
     setBudgets([]);
     setExpenseCategories(DEFAULT_EXPENSE_CATEGORIES);
     setIncomeCategories(DEFAULT_INCOME_CATEGORIES);
-    setFinancialPlan(null);
+    setFinancialPlans([]);
 
     setIsDataReady(false);
     setCloudStatus('idle');
@@ -472,7 +472,7 @@ const App: React.FC = () => {
       budgets,
       expenseCategories,
       incomeCategories,
-      financialPlan // Persistencia del plan
+      financialPlans // Persistencia de la lista
     };
 
     const serialized = JSON.stringify(data);
@@ -508,7 +508,7 @@ const App: React.FC = () => {
     budgets,
     expenseCategories,
     incomeCategories,
-    financialPlan,
+    financialPlans,
     currentUser,
     isDataReady,
     saveToCloud
@@ -657,6 +657,21 @@ const App: React.FC = () => {
     requestDelete('¿Eliminar Presupuesto?', 'El límite será eliminado.', () =>
       setBudgets((prev) => prev.filter((item) => item.id !== id))
     );
+  };
+
+  // Funciones para la Gestión de múltiples Planes
+  const handleSavePlan = (planToSave: any) => {
+    setFinancialPlans(prev => {
+      const exists = prev.find(p => p.id === planToSave.id);
+      if (exists) {
+        return prev.map(p => p.id === planToSave.id ? planToSave : p);
+      }
+      return [...prev, { ...planToSave, id: crypto.randomUUID() }];
+    });
+  };
+
+  const handleDeletePlan = (id: string) => {
+    setFinancialPlans(prev => prev.filter(p => p.id !== id));
   };
 
   const changeMonth = (offset: number) => {
@@ -1031,11 +1046,12 @@ const App: React.FC = () => {
               />
             )}
 
-            {/* Componente FinancialPlanning con persistencia conectada */}
+            {/* Renderizado de Múltiples Planes con props conectadas */}
             {activeView === 'planning' && (
               <FinancialPlanning 
-                savedPlan={financialPlan} 
-                onSave={(newPlan) => setFinancialPlan(newPlan)} 
+                savedPlans={financialPlans} 
+                onSave={handleSavePlan} 
+                onDelete={handleDeletePlan}
               />
             )}
           </div>

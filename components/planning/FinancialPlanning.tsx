@@ -14,7 +14,9 @@ import {
   Zap,
   Plus,
   Trash2,
-  List
+  List,
+  Baby,
+  UserCircle
 } from 'lucide-react';
 
 import { 
@@ -42,7 +44,9 @@ export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSav
     type: 'general',
     propertyValue: 0,
     downPayment: 0,
-    monthlyRent: 0
+    monthlyRent: 0,
+    currentAge: 30,
+    retirementAge: 65
   });
 
   const [plan, setPlan] = useState(savedPlans.length > 0 ? savedPlans[0] : createEmptyPlan());
@@ -69,7 +73,7 @@ export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSav
       const needed = calculateNeededContribution(plan);
       setPlan(prev => ({ ...prev, monthlyContribution: Number(needed.toFixed(2)) }));
     }
-  }, [mode, plan.goalAmount, plan.initialAmount, plan.durationMonths, plan.annualInterestRate, plan.monthlyRent]);
+  }, [mode, plan.goalAmount, plan.initialAmount, plan.durationMonths, plan.annualInterestRate, plan.monthlyRent, plan.currentAge, plan.retirementAge]);
 
   const timeline = useMemo(() => simulatePlan(plan), [plan]);
   const summary = useMemo(() => calculateSummary(plan, timeline), [plan, timeline]);
@@ -201,6 +205,56 @@ export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSav
       {/* INPUTS DE CONFIGURACIÓN */}
       <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          
+          <div>
+            <label className={labelClass}>Tipo de Inversión</label>
+            <select
+              value={plan.type}
+              onChange={e => update('type', e.target.value)}
+              className={`${inputClass} appearance-none bg-slate-50`}
+            >
+              <option value="general">💼 Inversión General</option>
+              <option value="real_estate">🏠 Bienes Raíces</option>
+              <option value="retirement">👴 Plan de Retiro</option>
+            </select>
+          </div>
+
+          {plan.type === 'retirement' ? (
+            <>
+              <div>
+                <label className={labelClass}>Edad Actual</label>
+                <div className="relative">
+                  <Baby className="absolute left-4 top-3.5 text-slate-300" size={16} />
+                  <input type="number" value={plan.currentAge}
+                    onChange={e => update('currentAge', +e.target.value)}
+                    className={`${inputClass} pl-11`}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className={labelClass}>Edad de Retiro</label>
+                <div className="relative">
+                  <UserCircle className="absolute left-4 top-3.5 text-slate-300" size={16} />
+                  <input type="number" value={plan.retirementAge}
+                    onChange={e => update('retirementAge', +e.target.value)}
+                    className={`${inputClass} pl-11`}
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div>
+              <label className={labelClass}>Plazo (Meses)</label>
+              <div className="relative">
+                <Calendar className="absolute left-4 top-3.5 text-slate-300" size={16} />
+                <input type="number" value={plan.durationMonths}
+                  onChange={e => update('durationMonths', +e.target.value)}
+                  className={`${inputClass} pl-11`}
+                />
+              </div>
+            </div>
+          )}
+
           <div>
             <label className={labelClass}>Capital Inicial</label>
             <div className="relative">
@@ -236,29 +290,6 @@ export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSav
           </div>
 
           <div>
-            <label className={labelClass}>Plazo (Meses)</label>
-            <div className="relative">
-              <Calendar className="absolute left-4 top-3.5 text-slate-300" size={16} />
-              <input type="number" value={plan.durationMonths}
-                onChange={e => update('durationMonths', +e.target.value)}
-                className={`${inputClass} pl-11`}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className={labelClass}>Tipo de Inversión</label>
-            <select
-              value={plan.type}
-              onChange={e => update('type', e.target.value)}
-              className={`${inputClass} appearance-none bg-slate-50`}
-            >
-              <option value="general">💼 Inversión General</option>
-              <option value="real_estate">🏠 Bienes Raíces</option>
-            </select>
-          </div>
-
-          <div>
             <label className={labelClass}>Meta de Ahorro</label>
             <div className="relative">
               <Target className="absolute left-4 top-3.5 text-slate-300" size={16} />
@@ -288,6 +319,33 @@ export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSav
           </div>
         )}
       </div>
+
+      {/* RESULTADO ESPECIAL DE RETIRO (REGLA DEL 4%) */}
+      {plan.type === 'retirement' && (
+        <div className="p-6 bg-slate-900 rounded-[2.5rem] text-white flex flex-col md:flex-row items-center justify-between gap-6 border-4 border-slate-800 shadow-2xl overflow-hidden relative group">
+          <div className="absolute right-0 top-0 opacity-10 group-hover:opacity-20 transition-opacity translate-x-10 -translate-y-10">
+            <TrendingUp size={240} />
+          </div>
+          <div className="flex items-center gap-5 relative z-10">
+            <div className="w-16 h-16 bg-indigo-500 rounded-[1.5rem] flex items-center justify-center text-white shadow-xl shadow-indigo-500/20">
+              <TrendingUp size={32} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-300 mb-1">Pensión Mensual Proyectada</p>
+              <p className="text-4xl font-black tracking-tighter">
+                ${(summary.monthlyPension || 0).toLocaleString(undefined, {maximumFractionDigits: 0})}
+                <span className="text-sm text-slate-400 ml-2 font-bold uppercase tracking-widest">/ Mes</span>
+              </p>
+            </div>
+          </div>
+          <div className="text-center md:text-right relative z-10">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Cálculo de Retiro Seguro</p>
+            <p className="text-xs text-slate-400 max-w-[280px] leading-relaxed">
+              Basado en la regla del 4%, podrías retirar este monto mensualmente de por vida sin agotar tu capital acumulado.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* STATUS DE LA META */}
       {plan.goalAmount > 0 && (
@@ -323,15 +381,15 @@ export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSav
       {/* RESUMEN DE NÚMEROS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className={cardClass}>
-          <p className={labelClass}>Total Final</p>
+          <p className={labelClass}>Total Final Proyectado</p>
           <p className="text-3xl font-black text-slate-950 tracking-tighter">${summary.finalBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
         </div>
         <div className={`${cardClass} bg-slate-50/50 border-slate-100`}>
-          <p className={labelClass}>Total Aportado</p>
+          <p className={labelClass}>Total Capital Inyectado</p>
           <p className="text-3xl font-black text-slate-600 tracking-tighter">${summary.totalContributed.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
         </div>
         <div className={`${cardClass} border-emerald-100 bg-emerald-50/20`}>
-          <p className={labelClass}>Intereses Ganados</p>
+          <p className={labelClass}>Intereses Generados</p>
           <p className="text-3xl font-black text-emerald-600 tracking-tighter">+${summary.totalInterest.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
         </div>
       </div>
@@ -344,7 +402,7 @@ export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSav
               <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500">
                 <BarChart3 size={18} />
               </div>
-              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Composición del Crecimiento</h3>
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Evolución del Patrimonio</h3>
             </div>
             <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">
               <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-indigo-500"></div> Capital</div>
@@ -394,7 +452,7 @@ export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSav
 
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
           <div className="px-7 py-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-            <h3 className="text-sm font-black uppercase tracking-[0.15em] text-slate-500">Detalle Mensual</h3>
+            <h3 className="text-sm font-black uppercase tracking-[0.15em] text-slate-500">Detalle Mes a Mes</h3>
           </div>
           
           <div className="flex-1 max-h-[400px] overflow-y-auto px-7 py-2 custom-scrollbar">

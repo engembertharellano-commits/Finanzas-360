@@ -1,27 +1,40 @@
 export const simulatePlan = (plan: any) => {
   const monthlyRate = (plan.annualInterestRate || 0) / 12 / 100;
   let balance = plan.initialAmount || 0;
+  
+  // Variables para trackear el gráfico de áreas
+  let accumulatedContributed = plan.initialAmount || 0;
+  let accumulatedInterest = 0;
+  
   const timeline = [];
 
   for (let month = 1; month <= plan.durationMonths; month++) {
+    // 1. Calcular interés del mes sobre el saldo anterior
     const interest = balance * monthlyRate;
+    accumulatedInterest += interest;
     balance += interest;
-    balance += (plan.monthlyContribution || 0);
 
-    if (plan.type === 'real_estate' && plan.monthlyRent) {
-      balance += plan.monthlyRent;
-    }
+    // 2. Sumar aportes (Mensual + Renta si aplica)
+    const monthlyContribution = (plan.monthlyContribution || 0);
+    const rentContribution = (plan.type === 'real_estate' ? (plan.monthlyRent || 0) : 0);
+    
+    balance += monthlyContribution + rentContribution;
+    
+    // El "Capital" en el gráfico es tu ahorro acumulado (no incluimos la renta aquí para ver el esfuerzo propio)
+    accumulatedContributed += monthlyContribution;
 
     timeline.push({
       month,
-      balance,
-      interest
+      balance, // El total (Línea superior del gráfico)
+      accumulatedContributed, // Área azul (Tu capital)
+      accumulatedInterest, // Área verde (Ganancia acumulada)
+      interest // Interés puntual del mes
     });
   }
   return timeline;
 };
 
-// NUEVA FUNCIÓN: Ingeniería Inversa
+// FUNCIÓN: Ingeniería Inversa (Modo Meta)
 export const calculateNeededContribution = (plan: any) => {
   const r = (plan.annualInterestRate || 0) / 12 / 100;
   const n = plan.durationMonths || 1;
@@ -43,9 +56,11 @@ export const calculateNeededContribution = (plan: any) => {
 };
 
 export const calculateSummary = (plan: any, timeline: any[]) => {
-  const finalBalance = timeline[timeline.length - 1]?.balance || 0;
-  const totalContributed = (plan.initialAmount || 0) + (plan.monthlyContribution || 0) * (plan.durationMonths || 0);
-  const totalInterest = finalBalance - totalContributed;
+  const lastEntry = timeline[timeline.length - 1];
+  
+  const finalBalance = lastEntry?.balance || 0;
+  const totalContributed = lastEntry?.accumulatedContributed || (plan.initialAmount || 0);
+  const totalInterest = lastEntry?.accumulatedInterest || 0;
 
   return {
     finalBalance,

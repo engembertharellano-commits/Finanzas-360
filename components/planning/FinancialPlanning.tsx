@@ -11,7 +11,10 @@ import {
   AlertCircle,
   BarChart3,
   Save,
-  Zap
+  Zap,
+  Plus,
+  Trash2,
+  List
 } from 'lucide-react';
 
 import { 
@@ -24,13 +27,15 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 
-// He añadido onSave y savedPlan a las props para que el botón de Guardar funcione
-export const FinancialPlanning = ({ onSave, savedPlan }: { onSave?: (plan: any) => void, savedPlan?: any }) => {
+// Ahora recibe savedPlans (array) y onDelete
+export const FinancialPlanning = ({ onSave, onDelete, savedPlans = [] }: { onSave: (plan: any) => void, onDelete: (id: string) => void, savedPlans: any[] }) => {
   const [mode, setMode] = useState<'simulate' | 'goal'>('simulate');
-  
-  // Ahora el estado inicial intenta usar lo que ya estaba guardado
-  const [plan, setPlan] = useState(savedPlan || {
-    name: 'Mi Plan',
+  const [showList, setShowList] = useState(false);
+
+  // Plantilla para un plan nuevo
+  const createEmptyPlan = () => ({
+    id: crypto.randomUUID(),
+    name: 'Nuevo Plan',
     initialAmount: 1000,
     monthlyContribution: 200,
     annualInterestRate: 10,
@@ -42,7 +47,16 @@ export const FinancialPlanning = ({ onSave, savedPlan }: { onSave?: (plan: any) 
     monthlyRent: 0
   });
 
-  // Este es el efecto de la lógica inversa: si cambias a Modo Meta, calcula el ahorro necesario
+  // Estado inicial: el primer plan guardado o uno vacío
+  const [plan, setPlan] = useState(savedPlans.length > 0 ? savedPlans[0] : createEmptyPlan());
+
+  // Sincronizar si se selecciona un plan de la lista
+  const handleSelectPlan = (p: any) => {
+    setPlan(p);
+    setShowList(false);
+  };
+
+  // Lógica inversa para Modo Meta
   useEffect(() => {
     if (mode === 'goal') {
       const needed = calculateNeededContribution(plan);
@@ -76,36 +90,92 @@ export const FinancialPlanning = ({ onSave, savedPlan }: { onSave?: (plan: any) 
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500">
       
-      {/* HEADER: Aquí he añadido el botón GUARDAR y el selector de MODO */}
+      {/* HEADER CON GESTIÓN DE MÚLTIPLES PLANES */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-lg">
             <Target size={24} />
           </div>
-          <div>
-            <h2 className="text-xl font-black text-slate-800 tracking-tight">Estrategia Financiera</h2>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Planificación de Patrimonio</p>
+          <div className="flex flex-col">
+            <input 
+              value={plan.name}
+              onChange={(e) => update('name', e.target.value)}
+              className="text-xl font-black text-slate-800 tracking-tight bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-500 focus:outline-none transition-all"
+              placeholder="Nombre del plan..."
+            />
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Planificación Activa</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl">
+          {/* BOTÓN NUEVO PLAN */}
+          <button 
+            onClick={() => { setPlan(createEmptyPlan()); setMode('simulate'); }}
+            className="p-2.5 bg-white text-slate-600 hover:text-indigo-600 rounded-xl shadow-sm transition-all"
+            title="Crear nuevo plan"
+          >
+            <Plus size={20} />
+          </button>
+
+          {/* SELECTOR DE LISTA */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowList(!showList)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${showList ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              <List size={14} /> MIS PLANES ({savedPlans.length})
+            </button>
+
+            {showList && (
+              <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-slate-100 shadow-2xl rounded-2xl z-50 p-2 animate-in zoom-in-95 duration-200">
+                {savedPlans.length === 0 ? (
+                  <p className="text-[10px] text-center py-4 font-bold text-slate-400 uppercase">No hay planes guardados</p>
+                ) : (
+                  savedPlans.map(p => (
+                    <div 
+                      key={p.id} 
+                      className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${plan.id === p.id ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
+                      onClick={() => handleSelectPlan(p)}
+                    >
+                      <span className="text-xs font-black truncate flex-1">{p.name}</span>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(p.id);
+                          if(plan.id === p.id) setPlan(createEmptyPlan());
+                        }}
+                        className="ml-2 p-1.5 text-slate-300 hover:text-rose-500 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="w-px h-6 bg-slate-200 mx-1" />
+
+          {/* BOTONES DE MODO */}
           <button 
             onClick={() => setMode('simulate')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${mode === 'simulate' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            <TrendingUp size={14} /> SIMULADOR
+            <TrendingUp size={14} /> SIMULAR
           </button>
           <button 
             onClick={() => setMode('goal')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${mode === 'goal' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            <Zap size={14} /> MODO META
+            <Zap size={14} /> META
           </button>
-          <div className="w-px h-6 bg-slate-200 mx-1" />
+
+          {/* BOTÓN GUARDAR */}
           <button 
-            onClick={() => onSave?.(plan)}
+            onClick={() => { onSave(plan); setShowList(false); }}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-100 transition-all"
           >
             <Save size={14} /> GUARDAR
@@ -113,6 +183,7 @@ export const FinancialPlanning = ({ onSave, savedPlan }: { onSave?: (plan: any) 
         </div>
       </div>
 
+      {/* INPUTS DE CONFIGURACIÓN */}
       <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div>
@@ -203,6 +274,7 @@ export const FinancialPlanning = ({ onSave, savedPlan }: { onSave?: (plan: any) 
         )}
       </div>
 
+      {/* STATUS DE LA META */}
       {plan.goalAmount > 0 && (
         <div className={`p-6 rounded-[2rem] flex items-center gap-5 border transition-all ${
           summary.finalBalance >= plan.goalAmount 
@@ -233,6 +305,7 @@ export const FinancialPlanning = ({ onSave, savedPlan }: { onSave?: (plan: any) 
         </div>
       )}
 
+      {/* RESUMEN DE NÚMEROS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className={cardClass}>
           <p className={labelClass}>Total Final</p>
@@ -248,21 +321,19 @@ export const FinancialPlanning = ({ onSave, savedPlan }: { onSave?: (plan: any) 
         </div>
       </div>
 
+      {/* GRÁFICA Y DETALLE MES A MES */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className={`${cardClass} lg:col-span-2 overflow-hidden flex flex-col`}>
           <div className="flex items-center gap-3 mb-6">
             <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500">
               <BarChart3 size={18} />
             </div>
-            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Evolución de Patrimonio</h3>
+            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Evolución del Patrimonio</h3>
           </div>
           
           <div className="flex-1 h-80 lg:h-full min-h-[320px] -ml-6 -mb-2 mt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={timeline}
-                margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
-              >
+              <LineChart data={timeline} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="month" hide />
                 <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} width={40} />

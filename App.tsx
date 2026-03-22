@@ -13,7 +13,8 @@ import {
   Settings2,
   Briefcase,
   Users,
-  UserX
+  UserX,
+  Target // Importado para el nuevo botón
 } from 'lucide-react';
 
 import {
@@ -168,12 +169,6 @@ const formatCurrency = (value: number, currency: 'USD' | 'VES') => {
   }).format(safeValue);
 };
 
-/**
- * Prioridad explícita:
- * 1) investment.value (tu campo principal)
- * 2) campos alternativos de compatibilidad
- * 3) cálculo por cantidad * precio
- */
 const getInvestmentRawValue = (inv: Investment): number => {
   if (typeof inv.value === 'number' && Number.isFinite(inv.value)) return inv.value;
   if (typeof inv.currentValue === 'number' && Number.isFinite(inv.currentValue)) return inv.currentValue;
@@ -238,7 +233,6 @@ const getInvestmentValueUSD = (inv: Investment, exchangeRate: number): number =>
     return raw / exchangeRate;
   }
 
-  // Si es USD, se deja tal cual
   return raw;
 };
 
@@ -341,7 +335,6 @@ const App: React.FC = () => {
     const results = await Promise.allSettled(
       keys.map(async (key) => {
         const resp = await fetch(`/api/state?userId=${encodeURIComponent(key)}`, { method: 'DELETE' });
-        // 404/405 los tratamos como no bloqueantes
         if (!resp.ok && resp.status !== 404 && resp.status !== 405) {
           throw new Error(`No se pudo eliminar estado en nube para ${key} (status ${resp.status})`);
         }
@@ -382,7 +375,6 @@ const App: React.FC = () => {
     }
   }, [currentUser, fetchRate]);
 
-  // Auto-ocultar banners de "saved" / "error"
   useEffect(() => {
     if (cloudStatus === 'saved' || cloudStatus === 'error') {
       const t = setTimeout(() => setCloudStatus('idle'), 2200);
@@ -390,7 +382,6 @@ const App: React.FC = () => {
     }
   }, [cloudStatus]);
 
-  // Carga inicial de datos por usuario
   useEffect(() => {
     let cancelled = false;
 
@@ -430,8 +421,6 @@ const App: React.FC = () => {
 
           if (cloudData) {
             finalData = cloudData;
-
-            // Migración automática al key canónico si vino por legacy
             if (foundKey && foundKey !== primaryKey) {
               void saveToCloud(primaryKey, cloudData).catch(() => {});
             }
@@ -463,7 +452,6 @@ const App: React.FC = () => {
     };
   }, [currentUser, applyData, loadFromCloud, saveToCloud]);
 
-  // Guardado local + nube (debounce, sin POST redundante)
   useEffect(() => {
     if (!currentUser) return;
     if (!isDataReady) return;
@@ -479,11 +467,8 @@ const App: React.FC = () => {
     };
 
     const serialized = JSON.stringify(data);
-
-    // Siempre local
     localStorage.setItem(`f360_data_${currentUser.id}`, serialized);
 
-    // Si no cambió nada, no dispares POST
     if (serialized === lastPersistedRef.current) {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       return;
@@ -547,33 +532,24 @@ const App: React.FC = () => {
       }
 
       return accountsList.map((acc) => {
-        // Cuenta origen / principal
         if (acc.id === tx.accountId) {
           if (tx.type === 'Gasto') {
             return { ...acc, balance: acc.balance - direction * (safeAmount + safeCommission) };
           }
-
           if (tx.type === 'Ingreso') {
             return { ...acc, balance: acc.balance + direction * (safeAmount - safeCommission) };
           }
-
           if (tx.type === 'Transferencia') {
-            // ✅ Origen descuenta monto + comisión
             return { ...acc, balance: acc.balance - direction * (safeAmount + safeCommission) };
           }
-
           if (tx.type === 'Ajuste') {
             const adj = tx.adjustmentDirection === 'minus' ? -safeAmount : safeAmount;
             return { ...acc, balance: acc.balance + direction * adj };
           }
         }
-
-        // Cuenta destino en transferencia
         if (tx.type === 'Transferencia' && acc.id === tx.toAccountId) {
-          // ✅ Destino recibe el monto completo (la comisión NO reduce llegada)
           return { ...acc, balance: acc.balance + direction * safeArrivalAmount };
         }
-
         return acc;
       });
     },
@@ -595,11 +571,9 @@ const App: React.FC = () => {
 
   const handleDeleteAccount = (id: string) => {
     const acc = accounts.find((a) => a.id === id);
-
     const hasRelatedTransactions = transactions.some(
       (t) => t.accountId === id || t.toAccountId === id
     );
-
     if (hasRelatedTransactions) {
       requestDelete(
         'No se puede eliminar la cuenta',
@@ -608,7 +582,6 @@ const App: React.FC = () => {
       );
       return;
     }
-
     requestDelete(
       '¿Eliminar Cuenta?',
       `Estás a punto de eliminar "${acc?.name}". Esta acción también podría afectar el historial visual de tus saldos.`,
@@ -625,7 +598,6 @@ const App: React.FC = () => {
   const handleDeleteTransaction = (id: string) => {
     const t = transactions.find((item) => item.id === id);
     if (!t) return;
-
     requestDelete(
       '¿Eliminar Movimiento?',
       `Se revertirá el impacto de "${t.description}" en los saldos.`,
@@ -638,18 +610,14 @@ const App: React.FC = () => {
 
   const handleUpdateTransaction = (updated: Transaction) => {
     const original = transactions.find((t) => t.id === updated.id);
-
     if (!original) {
-      // fallback por si no se encuentra
       setTransactions((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
       return;
     }
-
     setAccounts((prev) => {
       const reverted = applyTransactionImpact(prev, original, -1);
       return applyTransactionImpact(reverted, updated, 1);
     });
-
     setTransactions((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
   };
 
@@ -700,10 +668,8 @@ const App: React.FC = () => {
 
   const handleSelfDeleteAccount = useCallback(async () => {
     if (!currentUser) return;
-
     const userToDelete = currentUser;
     setIsDeletingAccount(true);
-
     try {
       await deleteFromCloud(userToDelete);
     } catch (e) {
@@ -712,7 +678,6 @@ const App: React.FC = () => {
       localStorage.removeItem(`f360_data_${userToDelete.id}`);
       localStorage.removeItem('f360_user');
       removeUserFromRegistries(userToDelete);
-
       setCurrentUser(null);
       resetSessionState();
       setIsDeletingAccount(false);
@@ -843,6 +808,18 @@ const App: React.FC = () => {
               icon={<Users size={20} />}
               label="Dinero Terceros"
             />
+
+            {/* Nuevo Botón: Financial Planning */}
+            <NavItem
+              active={activeView === 'planning'}
+              onClick={() => {
+                setActiveView('planning');
+                setIsMobileMenuOpen(false);
+              }}
+              icon={<Target size={20} />}
+              label="Planificación"
+            />
+
             <NavItem
               active={activeView === 'budget'}
               onClick={() => {
@@ -1042,6 +1019,11 @@ const App: React.FC = () => {
                 onUpdateExpenses={setExpenseCategories}
                 onUpdateIncome={setIncomeCategories}
               />
+            )}
+
+            {/* Renderizado del Módulo Planning */}
+            {activeView === 'planning' && (
+              <FinancialPlanning />
             )}
           </div>
         </div>

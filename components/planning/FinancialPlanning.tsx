@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { simulatePlan, calculateSummary } from '../../utils/financialEngine';
+import React, { useState, useMemo, useEffect } from 'react';
+import { simulatePlan, calculateSummary, calculateNeededContribution } from '../../utils/financialEngine';
 import { 
   Target, 
   TrendingUp, 
@@ -9,10 +9,11 @@ import {
   Home,
   CheckCircle2,
   AlertCircle,
-  BarChart3 // Icono para la sección de gráfica
+  BarChart3,
+  Save,
+  Zap
 } from 'lucide-react';
 
-// IMPORTACIÓN DE RECHARTS - Requiere 'npm install recharts'
 import { 
   LineChart, 
   Line, 
@@ -23,8 +24,12 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 
-export const FinancialPlanning = () => {
-  const [plan, setPlan] = useState({
+// He añadido onSave y savedPlan a las props para que el botón de Guardar funcione
+export const FinancialPlanning = ({ onSave, savedPlan }: { onSave?: (plan: any) => void, savedPlan?: any }) => {
+  const [mode, setMode] = useState<'simulate' | 'goal'>('simulate');
+  
+  // Ahora el estado inicial intenta usar lo que ya estaba guardado
+  const [plan, setPlan] = useState(savedPlan || {
     name: 'Mi Plan',
     initialAmount: 1000,
     monthlyContribution: 200,
@@ -37,6 +42,14 @@ export const FinancialPlanning = () => {
     monthlyRent: 0
   });
 
+  // Este es el efecto de la lógica inversa: si cambias a Modo Meta, calcula el ahorro necesario
+  useEffect(() => {
+    if (mode === 'goal') {
+      const needed = calculateNeededContribution(plan);
+      setPlan(prev => ({ ...prev, monthlyContribution: Number(needed.toFixed(2)) }));
+    }
+  }, [mode, plan.goalAmount, plan.initialAmount, plan.durationMonths, plan.annualInterestRate, plan.monthlyRent]);
+
   const timeline = useMemo(() => simulatePlan(plan), [plan]);
   const summary = useMemo(() => calculateSummary(plan, timeline), [plan, timeline]);
 
@@ -44,12 +57,10 @@ export const FinancialPlanning = () => {
     setPlan(prev => ({ ...prev, [field]: value }));
   };
 
-  // Clases compartidas para consistencia visual
   const inputClass = "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all";
   const labelClass = "block text-[10px] uppercase tracking-widest font-black text-slate-400 mb-1.5 ml-1";
   const cardClass = "bg-white p-6 rounded-3xl border border-slate-100 shadow-sm";
 
-  // Formateador personalizado para el Tooltip de la gráfica
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
@@ -67,17 +78,43 @@ export const FinancialPlanning = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       
-      {/* 1. SECCIÓN DE CONFIGURACIÓN */}
-      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-            <Target size={20} />
+      {/* HEADER: Aquí he añadido el botón GUARDAR y el selector de MODO */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-lg">
+            <Target size={24} />
           </div>
-          <h2 className="text-xl font-black tracking-tight text-slate-800">Planificador Financiero</h2>
+          <div>
+            <h2 className="text-xl font-black text-slate-800 tracking-tight">Estrategia Financiera</h2>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Planificación de Patrimonio</p>
+          </div>
         </div>
 
+        <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl">
+          <button 
+            onClick={() => setMode('simulate')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${mode === 'simulate' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <TrendingUp size={14} /> SIMULADOR
+          </button>
+          <button 
+            onClick={() => setMode('goal')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${mode === 'goal' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <Zap size={14} /> MODO META
+          </button>
+          <div className="w-px h-6 bg-slate-200 mx-1" />
+          <button 
+            onClick={() => onSave?.(plan)}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-100 transition-all"
+          >
+            <Save size={14} /> GUARDAR
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Capital Inicial */}
           <div>
             <label className={labelClass}>Capital Inicial</label>
             <div className="relative">
@@ -85,25 +122,22 @@ export const FinancialPlanning = () => {
               <input type="number" value={plan.initialAmount}
                 onChange={e => update('initialAmount', +e.target.value)}
                 className={`${inputClass} pl-11`}
-                placeholder="0"
               />
             </div>
           </div>
 
-          {/* Aporte Mensual */}
           <div>
-            <label className={labelClass}>Aporte Mensual</label>
+            <label className={labelClass}>{mode === 'goal' ? 'Aporte Necesario' : 'Aporte Mensual'}</label>
             <div className="relative">
               <TrendingUp className="absolute left-4 top-3.5 text-slate-300" size={16} />
               <input type="number" value={plan.monthlyContribution}
+                disabled={mode === 'goal'}
                 onChange={e => update('monthlyContribution', +e.target.value)}
-                className={`${inputClass} pl-11`}
-                placeholder="0"
+                className={`${inputClass} pl-11 ${mode === 'goal' ? 'bg-indigo-50 border-indigo-100 text-indigo-700 font-black' : ''}`}
               />
             </div>
           </div>
 
-          {/* Interés Anual */}
           <div>
             <label className={labelClass}>Interés Anual (%)</label>
             <div className="relative">
@@ -111,12 +145,10 @@ export const FinancialPlanning = () => {
               <input type="number" value={plan.annualInterestRate}
                 onChange={e => update('annualInterestRate', +e.target.value)}
                 className={`${inputClass} pl-11`}
-                placeholder="0"
               />
             </div>
           </div>
 
-          {/* Plazo */}
           <div>
             <label className={labelClass}>Plazo (Meses)</label>
             <div className="relative">
@@ -124,12 +156,10 @@ export const FinancialPlanning = () => {
               <input type="number" value={plan.durationMonths}
                 onChange={e => update('durationMonths', +e.target.value)}
                 className={`${inputClass} pl-11`}
-                placeholder="0"
               />
             </div>
           </div>
 
-          {/* Tipo de Inversión */}
           <div>
             <label className={labelClass}>Tipo de Inversión</label>
             <select
@@ -142,7 +172,6 @@ export const FinancialPlanning = () => {
             </select>
           </div>
 
-          {/* Meta de Ahorro */}
           <div>
             <label className={labelClass}>Meta de Ahorro</label>
             <div className="relative">
@@ -150,13 +179,11 @@ export const FinancialPlanning = () => {
               <input type="number" value={plan.goalAmount}
                 onChange={e => update('goalAmount', +e.target.value)}
                 className={`${inputClass} pl-11 font-black text-indigo-600 border-indigo-100 bg-indigo-50/50`}
-                placeholder="0"
               />
             </div>
           </div>
         </div>
 
-        {/* Campos extra para Bienes Raíces (Animado) */}
         {plan.type === 'real_estate' && (
           <div className="mt-6 p-6 bg-slate-50 rounded-3xl border border-dashed border-slate-200 animate-in fade-in slide-in-from-top-2">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -176,7 +203,6 @@ export const FinancialPlanning = () => {
         )}
       </div>
 
-      {/* 2. STATUS DE LA META (Solo si hay meta definida) */}
       {plan.goalAmount > 0 && (
         <div className={`p-6 rounded-[2rem] flex items-center gap-5 border transition-all ${
           summary.finalBalance >= plan.goalAmount 
@@ -207,32 +233,28 @@ export const FinancialPlanning = () => {
         </div>
       )}
 
-      {/* 3. SECCIÓN DE RESULTADOS DESTACADOS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className={cardClass}>
-          <p className={labelClass}>Total Final (Patrimonio)</p>
+          <p className={labelClass}>Total Final</p>
           <p className="text-3xl font-black text-slate-950 tracking-tighter">${summary.finalBalance.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
         </div>
         <div className={`${cardClass} bg-slate-50/50 border-slate-100`}>
-          <p className={labelClass}>Capital Aportado</p>
+          <p className={labelClass}>Total Aportado</p>
           <p className="text-3xl font-black text-slate-600 tracking-tighter">${summary.totalContributed.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
         </div>
         <div className={`${cardClass} border-emerald-100 bg-emerald-50/20`}>
-          <p className={labelClass}>Intereses Generados (Ganancia)</p>
+          <p className={labelClass}>Intereses Ganados</p>
           <p className="text-3xl font-black text-emerald-600 tracking-tighter">+${summary.totalInterest.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
         </div>
       </div>
 
-      {/* 4. VISUALIZACIÓN GRÁFICA Y DETALLE */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Gráfica Lineal (2/3 del ancho en desktop) */}
         <div className={`${cardClass} lg:col-span-2 overflow-hidden flex flex-col`}>
           <div className="flex items-center gap-3 mb-6">
             <div className="w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500">
               <BarChart3 size={18} />
             </div>
-            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Evolución del Patrimonio</h3>
+            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">Evolución de Patrimonio</h3>
           </div>
           
           <div className="flex-1 h-80 lg:h-full min-h-[320px] -ml-6 -mb-2 mt-2">
@@ -242,53 +264,15 @@ export const FinancialPlanning = () => {
                 margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis 
-                  dataKey="month" 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 'bold' }}
-                  interval={Math.ceil(timeline.length / 10)} // Ajusta densidad de etiquetas
-                  label={{ value: 'Meses', position: 'insideBottom', offset: -10, fontSize: 10, fill: '#cbd5e1', fontWeight: 'bold' }}
-                />
-                <YAxis 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 'bold' }}
-                  tickFormatter={(value) => `$${value / 1000}k`} // Formato abreviado $1k, $2k
-                  width={40}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '6 6' }} />
-                
-                {/* Línea de la Meta (Solo si hay meta) */}
-                {plan.goalAmount > 0 && (
-                  <Line 
-                    type="monotone" 
-                    dataKey={() => plan.goalAmount} 
-                    stroke="#fda4af" // Rose 300
-                    strokeWidth={2} 
-                    strokeDasharray="8 8" 
-                    dot={false}
-                    activeDot={false}
-                    name="Meta"
-                  />
-                )}
-
-                <Line 
-                  type="monotone" 
-                  dataKey="balance" 
-                  stroke="#6366f1" // Indigo 500
-                  strokeWidth={4} 
-                  dot={{ stroke: '#6366f1', strokeWidth: 2, r: 4, fill: 'white' }}
-                  activeDot={{ r: 6, stroke: '#4338ca', fill: 'white' }}
-                  name="Saldo"
-                  animationDuration={1000}
-                />
+                <XAxis dataKey="month" hide />
+                <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} width={40} />
+                <Tooltip content={<CustomTooltip />} />
+                <Line type="monotone" dataKey="balance" stroke="#6366f1" strokeWidth={4} dot={false} animationDuration={1000} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Tabla de Proyección (1/3 del ancho en desktop) */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
           <div className="px-7 py-5 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
             <h3 className="text-sm font-black uppercase tracking-[0.15em] text-slate-500">Detalle Mes a Mes</h3>
@@ -300,7 +284,7 @@ export const FinancialPlanning = () => {
                 key={m.month} 
                 className={`flex justify-between items-center py-4 border-b last:border-0 hover:bg-slate-50/50 transition-colors px-2 rounded-xl ${
                   m.balance >= plan.goalAmount && plan.goalAmount > 0 && timeline[index-1]?.balance < plan.goalAmount
-                  ? 'border-l-4 border-emerald-300 bg-emerald-50/50 my-1' // Resalta el mes que se alcanza la meta
+                  ? 'border-l-4 border-emerald-300 bg-emerald-50/50 my-1'
                   : 'border-slate-50'
                 }`}
               >

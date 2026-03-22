@@ -61,6 +61,7 @@ type PersistedFinanceData = {
   budgets: Budget[];
   expenseCategories: string[];
   incomeCategories: string[];
+  financialPlan?: any; // Agregado para persistencia
 };
 
 type CloudStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -71,7 +72,8 @@ const EMPTY_DATA: PersistedFinanceData = {
   investments: [],
   budgets: [],
   expenseCategories: DEFAULT_EXPENSE_CATEGORIES,
-  incomeCategories: DEFAULT_INCOME_CATEGORIES
+  incomeCategories: DEFAULT_INCOME_CATEGORIES,
+  financialPlan: null // Inicializado
 };
 
 const USER_REGISTRY_KEYS = ['f360_users', 'f360_users_list', 'finanza360_users', 'users'];
@@ -97,7 +99,8 @@ const normalizeData = (input: unknown): PersistedFinanceData => {
       : DEFAULT_EXPENSE_CATEGORIES,
     incomeCategories: Array.isArray(data?.incomeCategories)
       ? data.incomeCategories
-      : DEFAULT_INCOME_CATEGORIES
+      : DEFAULT_INCOME_CATEGORIES,
+    financialPlan: data?.financialPlan || null // Procesado de carga
   };
 };
 
@@ -260,6 +263,9 @@ const App: React.FC = () => {
 
   const [expenseCategories, setExpenseCategories] = useState<string[]>(DEFAULT_EXPENSE_CATEGORIES);
   const [incomeCategories, setIncomeCategories] = useState<string[]>(DEFAULT_INCOME_CATEGORIES);
+  
+  // Estado global para el plan
+  const [financialPlan, setFinancialPlan] = useState<any>(null);
 
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
@@ -290,6 +296,7 @@ const App: React.FC = () => {
     setBudgets(clean.budgets);
     setExpenseCategories(clean.expenseCategories);
     setIncomeCategories(clean.incomeCategories);
+    setFinancialPlan(clean.financialPlan); // Carga el plan
   }, []);
 
   const fetchRate = useCallback(async () => {
@@ -359,6 +366,7 @@ const App: React.FC = () => {
     setBudgets([]);
     setExpenseCategories(DEFAULT_EXPENSE_CATEGORIES);
     setIncomeCategories(DEFAULT_INCOME_CATEGORIES);
+    setFinancialPlan(null);
 
     setIsDataReady(false);
     setCloudStatus('idle');
@@ -463,7 +471,8 @@ const App: React.FC = () => {
       investments,
       budgets,
       expenseCategories,
-      incomeCategories
+      incomeCategories,
+      financialPlan // Persistencia del plan
     };
 
     const serialized = JSON.stringify(data);
@@ -499,6 +508,7 @@ const App: React.FC = () => {
     budgets,
     expenseCategories,
     incomeCategories,
+    financialPlan,
     currentUser,
     isDataReady,
     saveToCloud
@@ -1021,9 +1031,12 @@ const App: React.FC = () => {
               />
             )}
 
-            {/* Renderizado del Módulo Planning */}
+            {/* Componente FinancialPlanning con persistencia conectada */}
             {activeView === 'planning' && (
-              <FinancialPlanning />
+              <FinancialPlanning 
+                savedPlan={financialPlan} 
+                onSave={(newPlan) => setFinancialPlan(newPlan)} 
+              />
             )}
           </div>
         </div>

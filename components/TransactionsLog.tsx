@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Transaction, BankAccount } from '../types';
 import { TransactionForm } from './TransactionForm';
@@ -21,7 +20,6 @@ export const TransactionsLog: React.FC<Props> = ({
   const [filter, setFilter] = useState<string>('');
   const [showAdd, setShowAdd] = useState(false);
 
-  // Added fix for monthName missing error
   const monthName = useMemo(() => {
     const [year, month] = selectedMonth.split('-').map(Number);
     return new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(new Date(year, month - 1));
@@ -51,7 +49,21 @@ export const TransactionsLog: React.FC<Props> = ({
       {showAdd && (
         <div className="animate-in fade-in slide-in-from-top-6 duration-500">
           <TransactionForm 
-            onAdd={(t) => { onAdd(t); setShowAdd(false); }} 
+            onAdd={(t) => {
+              let enhanced = { ...t };
+
+              // 🔥 NUEVA LÓGICA: guardar tasa histórica
+              if (t.currency === 'VES' && exchangeRate > 0) {
+                enhanced = {
+                  ...t,
+                  exchangeRateAtCreation: exchangeRate,
+                  usdEquivalentAtCreation: t.amount / exchangeRate
+                };
+              }
+
+              onAdd(enhanced);
+              setShowAdd(false);
+            }} 
             accounts={accounts}
             globalExchangeRate={exchangeRate}
             expenseCategories={expenseCategories}
@@ -139,6 +151,13 @@ export const TransactionsLog: React.FC<Props> = ({
                           {t.type === 'Gasto' ? '-' : (t.type === 'Ingreso' ? '+' : '')}
                           {t.currency === 'USD' ? '$' : 'Bs '}{t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </p>
+
+                        {/* 🔥 NUEVO: mostrar USD histórico */}
+                        {t.currency === 'VES' && t.usdEquivalentAtCreation && (
+                          <p className="text-xs text-slate-400 font-bold mt-1">
+                            ≈ ${t.usdEquivalentAtCreation.toFixed(2)} (histórico)
+                          </p>
+                        )}
                     </td>
                     <td className="px-10 py-6 text-center">
                       <button 

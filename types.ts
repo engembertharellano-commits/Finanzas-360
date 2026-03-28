@@ -69,6 +69,10 @@ export interface Transaction {
   // Compatibilidad extra (por si algún componente usa otro naming)
   isThirdPartyMoney?: boolean;
   thirdPartyName?: string;
+
+  // 📊 NUEVO: Conversión histórica
+  exchangeRateAtCreation?: number;
+  usdEquivalentAtCreation?: number;
 }
 
 export interface Investment {

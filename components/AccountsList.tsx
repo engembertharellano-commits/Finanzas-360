@@ -289,28 +289,29 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
         {groupedAccounts.map((group) => (
           <section
             key={group.type}
-            className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden"
+            className="rounded-[2.5rem] overflow-hidden shadow-sm border border-slate-200 bg-white"
           >
-            <div className="px-6 md:px-8 py-5 border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50">
-              <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="relative px-6 md:px-8 py-5 bg-slate-900 text-white border-b border-slate-800">
+              <div className="absolute inset-y-0 left-0 w-1.5 bg-blue-500" />
+              <div className="flex items-center justify-between gap-4 flex-wrap pl-2">
                 <div className="flex items-center gap-4">
-                  <div className="p-3.5 rounded-2xl bg-white text-slate-700 shadow-sm ring-1 ring-slate-200">
+                  <div className="p-3.5 rounded-2xl bg-white/10 text-white shadow-inner ring-1 ring-white/10">
                     {getAccountIcon(group.type)}
                   </div>
 
                   <div className="flex items-center gap-3 flex-wrap">
-                    <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                    <h3 className="text-lg font-black tracking-tight text-white">
                       {group.type}
                     </h3>
-                    <span className="inline-flex items-center px-3 py-1 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.18em] shadow-sm">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full bg-blue-500 text-white text-[10px] font-black uppercase tracking-[0.18em] shadow-sm">
                       {group.items.length} {group.items.length === 1 ? 'cuenta' : 'cuentas'}
                     </span>
                   </div>
                 </div>
 
-                <div className="hidden md:flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-blue-500" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                <div className="hidden md:flex items-center gap-2 text-white/70">
+                  <div className="h-2 w-2 rounded-full bg-blue-400" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.18em]">
                     Grupo de cuentas
                   </span>
                 </div>

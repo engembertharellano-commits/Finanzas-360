@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { BankAccount, AccountType, Currency } from '../types';
 import {
   Plus,
@@ -17,6 +17,15 @@ interface Props {
   onAdd: (acc: BankAccount) => void;
   onDelete: (id: string) => void;
 }
+
+const ACCOUNT_TYPE_ORDER: AccountType[] = [
+  'Ahorros',
+  'Corriente',
+  'Efectivo',
+  'Billetera Virtual',
+  'Broker',
+  'Tarjeta de Crédito'
+];
 
 export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => {
   const [showForm, setShowForm] = useState(false);
@@ -44,7 +53,6 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
     const accountData: BankAccount = {
       ...newAcc,
       id: crypto.randomUUID(),
-      // Tarjeta: deuda inicial se guarda como balance negativo para cálculo automático de deuda
       balance: isCredit ? -Math.abs(parsedBalance) : parsedBalance,
       ...(isCredit
         ? {
@@ -76,28 +84,44 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
   const getAccountIcon = (type: AccountType) => {
     switch (type) {
       case 'Tarjeta de Crédito':
-        return <CreditCard />;
+        return <CreditCard size={18} />;
       case 'Efectivo':
-        return <WalletIcon />;
+        return <WalletIcon size={18} />;
       case 'Billetera Virtual':
-        return <Smartphone />;
+        return <Smartphone size={18} />;
       case 'Broker':
-        return <BarChart2 />;
+        return <BarChart2 size={18} />;
       default:
-        return <Landmark />;
+        return <Landmark size={18} />;
     }
   };
 
   const formatAmount = (amount: number, currency: Currency) =>
     `${currency === 'USD' ? '$' : 'Bs '}${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 
+  const groupedAccounts = useMemo(() => {
+    return ACCOUNT_TYPE_ORDER.map((type) => ({
+      type,
+      items: accounts
+        .filter((acc) => acc.type === type)
+        .sort((a, b) => {
+          const aVal = Math.abs(a.balance);
+          const bVal = Math.abs(b.balance);
+          return bVal - aVal;
+        })
+    })).filter((group) => group.items.length > 0);
+  }, [accounts]);
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-4 flex-wrap">
         <div>
           <h2 className="text-2xl font-black text-slate-900">Bancos y Brokers</h2>
-          <p className="text-slate-500 text-sm font-medium">Gestiona tu liquidez y tus plataformas de inversión</p>
+          <p className="text-slate-500 text-sm font-medium">
+            Gestiona tu liquidez y tus plataformas de inversión
+          </p>
         </div>
+
         <button
           onClick={() => setShowForm(!showForm)}
           className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
@@ -113,7 +137,9 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
         >
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Nombre Entidad / Broker</label>
+              <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
+                Nombre Entidad / Broker
+              </label>
               <input
                 placeholder="Ej. Banesco, Binance, Hapi..."
                 className="px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
@@ -124,7 +150,9 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Tipo de Cuenta</label>
+              <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
+                Tipo de Cuenta
+              </label>
               <select
                 className="px-4 py-3 rounded-xl border border-slate-200 outline-none bg-slate-50"
                 value={newAcc.type}
@@ -177,7 +205,9 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
           {newAcc.type === 'Tarjeta de Crédito' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Límite de Crédito</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
+                  Límite de Crédito
+                </label>
                 <input
                   type="number"
                   step="0.01"
@@ -196,7 +226,9 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Fecha de Corte (día)</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
+                  Fecha de Corte (día)
+                </label>
                 <input
                   type="number"
                   min="1"
@@ -214,7 +246,9 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Fecha de Pago (día)</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
+                  Fecha de Pago (día)
+                </label>
                 <input
                   type="number"
                   min="1"
@@ -251,121 +285,216 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
         </form>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {accounts.map((acc) => {
-          const isCredit = acc.type === 'Tarjeta de Crédito';
-          const isBroker = acc.type === 'Broker';
-
-          // ✅ Deuda actual automática basada en balance
-          const currentDebt = isCredit ? Math.max(0, -acc.balance) : 0;
-          const creditLimit = isCredit ? Math.max(0, acc.creditLimit || 0) : 0;
-          const availableCredit = isCredit ? Math.max(0, creditLimit - currentDebt) : 0;
-          const usagePct = isCredit && creditLimit > 0 ? Math.min((currentDebt / creditLimit) * 100, 100) : 0;
-
-          return (
-            <div
-              key={acc.id}
-              className={`group relative bg-white p-7 rounded-[2.5rem] border ${
-                isBroker ? 'border-blue-100 bg-blue-50/10' : 'border-slate-100'
-              } shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden`}
-            >
-              <div className="flex justify-between items-start mb-6">
-                <div
-                  className="p-3.5 rounded-2xl"
-                  style={{
-                    backgroundColor: isBroker ? '#3b82f615' : `${acc.color}15`,
-                    color: isBroker ? '#3b82f6' : acc.color
-                  }}
-                >
-                  {getAccountIcon(acc.type)}
+      <div className="space-y-6">
+        {groupedAccounts.map((group) => (
+          <section
+            key={group.type}
+            className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden"
+          >
+            <div className="px-6 md:px-8 py-5 border-b border-slate-100 bg-slate-50/60">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-white text-slate-700 shadow-sm">
+                  {getAccountIcon(group.type)}
                 </div>
-                <button
-                  onClick={() => onDelete(acc.id)}
-                  className="opacity-0 group-hover:opacity-100 p-2 text-slate-300 hover:text-rose-500 transition-all"
-                >
-                  <Trash2 size={18} />
-                </button>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">{group.type}</h3>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                    {group.items.length} {group.items.length === 1 ? 'cuenta' : 'cuentas'}
+                  </p>
+                </div>
               </div>
-
-              <div className="space-y-1 mb-4">
-                <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-widest">{acc.type}</h3>
-                <p className="text-xl font-black text-slate-900 truncate">{acc.name}</p>
-              </div>
-
-              <div className="space-y-4">
-                {!isCredit ? (
-                  <div>
-                    <p className="text-xs font-bold text-slate-400 mb-1">{isBroker ? 'Disponible para Invertir' : 'Efectivo / Caja'}</p>
-                    <p className="text-3xl font-black text-slate-900">{formatAmount(acc.balance, acc.currency)}</p>
-                  </div>
-                ) : (
-                  <>
-                    <div>
-                      <p className="text-xs font-bold text-slate-400 mb-1">Deuda actual</p>
-                      <p className={`text-3xl font-black ${usagePct >= 85 ? 'text-rose-600' : 'text-slate-900'}`}>
-                        {formatAmount(currentDebt, acc.currency)}
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-slate-50 rounded-xl p-3">
-                        <p className="text-[10px] font-black uppercase text-slate-400">Límite</p>
-                        <p className="text-sm font-black text-slate-900 mt-1">
-                          {formatAmount(creditLimit, acc.currency)}
-                        </p>
-                      </div>
-                      <div className="bg-slate-50 rounded-xl p-3">
-                        <p className="text-[10px] font-black uppercase text-slate-400">Disponible</p>
-                        <p className="text-sm font-black text-slate-900 mt-1">
-                          {formatAmount(availableCredit, acc.currency)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${usagePct >= 85 ? 'bg-rose-500' : 'bg-blue-500'} transition-all`}
-                        style={{ width: `${usagePct}%` }}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-2">
-                      <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 bg-slate-50 rounded-xl px-3 py-2">
-                        <CalendarDays size={14} />
-                        Fecha de corte: día {acc.closingDay ?? '-'}
-                      </div>
-                      <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 bg-slate-50 rounded-xl px-3 py-2">
-                        <CalendarDays size={14} />
-                        Fecha de pago: día {acc.dueDay ?? '-'}
-                      </div>
-                    </div>
-
-                    {usagePct >= 85 && (
-                      <div className="flex items-center gap-2 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">
-                        <AlertCircle size={14} />
-                        Uso alto del límite.
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {isBroker && (
-                  <div className="pt-4 border-t border-blue-50 flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${acc.balance > 0 ? 'bg-emerald-500' : 'bg-slate-300'} animate-pulse`} />
-                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
-                      Disponible para Invertir
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div
-                className="absolute bottom-0 left-0 right-0 h-1.5 rounded-b-[2.5rem]"
-                style={{ backgroundColor: isBroker ? '#3b82f6' : acc.color }}
-              />
             </div>
-          );
-        })}
+
+            <div className="divide-y divide-slate-100">
+              {group.items.map((acc) => {
+                const isCredit = acc.type === 'Tarjeta de Crédito';
+                const isBroker = acc.type === 'Broker';
+
+                const currentDebt = isCredit ? Math.max(0, -acc.balance) : 0;
+                const creditLimit = isCredit ? Math.max(0, acc.creditLimit || 0) : 0;
+                const availableCredit = isCredit ? Math.max(0, creditLimit - currentDebt) : 0;
+                const usagePct =
+                  isCredit && creditLimit > 0 ? Math.min((currentDebt / creditLimit) * 100, 100) : 0;
+
+                return (
+                  <div
+                    key={acc.id}
+                    className={`px-6 md:px-8 py-6 transition-colors ${
+                      isBroker ? 'bg-blue-50/20' : 'hover:bg-slate-50/60'
+                    }`}
+                  >
+                    <div className="flex flex-col xl:flex-row xl:items-center gap-5 xl:gap-8">
+                      <div className="min-w-0 xl:w-[280px]">
+                        <div className="flex items-center gap-4">
+                          <div
+                            className="p-3.5 rounded-2xl shrink-0"
+                            style={{
+                              backgroundColor: isBroker ? '#3b82f615' : `${acc.color}15`,
+                              color: isBroker ? '#3b82f6' : acc.color
+                            }}
+                          >
+                            {getAccountIcon(acc.type)}
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="text-lg font-black text-slate-900 truncate">{acc.name}</p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                {acc.currency}
+                              </span>
+
+                              {isBroker && (
+                                <span className="text-[9px] font-black bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                                  Inversión
+                                </span>
+                              )}
+
+                              {isCredit && usagePct >= 85 && (
+                                <span className="text-[9px] font-black bg-rose-50 text-rose-600 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                                  Uso alto
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {!isCredit ? (
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div className="bg-slate-50 rounded-2xl px-4 py-3">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                              {isBroker ? 'Disponible para invertir' : 'Efectivo / Caja'}
+                            </p>
+                            <p className="text-2xl font-black text-slate-900">
+                              {formatAmount(acc.balance, acc.currency)}
+                            </p>
+                          </div>
+
+                          <div className="bg-slate-50 rounded-2xl px-4 py-3">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                              Tipo
+                            </p>
+                            <p className="text-lg font-black text-slate-900">{acc.type}</p>
+                          </div>
+
+                          <div className="bg-slate-50 rounded-2xl px-4 py-3">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                              Estado
+                            </p>
+                            <div className="flex items-center gap-2">
+                              {isBroker && (
+                                <div
+                                  className={`w-2.5 h-2.5 rounded-full ${
+                                    acc.balance > 0 ? 'bg-emerald-500' : 'bg-slate-300'
+                                  } animate-pulse`}
+                                />
+                              )}
+                              <p
+                                className={`text-sm font-black ${
+                                  isBroker
+                                    ? acc.balance > 0
+                                      ? 'text-blue-600'
+                                      : 'text-slate-400'
+                                    : 'text-slate-700'
+                                }`}
+                              >
+                                {isBroker
+                                  ? acc.balance > 0
+                                    ? 'Disponible para invertir'
+                                    : 'Sin fondos para invertir'
+                                  : 'Operativa'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex-1 space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="bg-slate-50 rounded-2xl px-4 py-3">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                                Deuda actual
+                              </p>
+                              <p
+                                className={`text-2xl font-black ${
+                                  usagePct >= 85 ? 'text-rose-600' : 'text-slate-900'
+                                }`}
+                              >
+                                {formatAmount(currentDebt, acc.currency)}
+                              </p>
+                            </div>
+
+                            <div className="bg-slate-50 rounded-2xl px-4 py-3">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                                Límite
+                              </p>
+                              <p className="text-xl font-black text-slate-900">
+                                {formatAmount(creditLimit, acc.currency)}
+                              </p>
+                            </div>
+
+                            <div className="bg-slate-50 rounded-2xl px-4 py-3">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                                Disponible
+                              </p>
+                              <p className="text-xl font-black text-slate-900">
+                                {formatAmount(availableCredit, acc.currency)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full transition-all ${
+                                  usagePct >= 85 ? 'bg-rose-500' : 'bg-blue-500'
+                                }`}
+                                style={{ width: `${usagePct}%` }}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] font-bold">
+                              <span className={usagePct >= 85 ? 'text-rose-600' : 'text-slate-500'}>
+                                Uso del límite: {usagePct.toFixed(0)}%
+                              </span>
+                              <span className="text-slate-500">{formatAmount(availableCredit, acc.currency)} disponibles</span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 bg-slate-50 rounded-xl px-3 py-2">
+                              <CalendarDays size={14} />
+                              Fecha de corte: día {acc.closingDay ?? '-'}
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 bg-slate-50 rounded-xl px-3 py-2">
+                              <CalendarDays size={14} />
+                              Fecha de pago: día {acc.dueDay ?? '-'}
+                            </div>
+                          </div>
+
+                          {usagePct >= 85 && (
+                            <div className="flex items-center gap-2 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">
+                              <AlertCircle size={14} />
+                              Uso alto del límite.
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="xl:w-auto flex items-center xl:self-start">
+                        <button
+                          onClick={() => onDelete(acc.id)}
+                          className="p-3 text-slate-300 hover:text-rose-500 transition-all rounded-2xl hover:bg-rose-50"
+                          title="Eliminar cuenta"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </div>
     </div>
   );

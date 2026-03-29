@@ -134,7 +134,17 @@ export const BudgetView: React.FC<Props> = ({
       .filter((b) => b.currency === 'VES')
       .reduce((s, b) => s + (b.spent || 0), 0);
 
-    return { totalUSD, totalVES, totalSpentUSD, totalSpentVES };
+    const remainingUSD = Math.max(0, totalUSD - totalSpentUSD);
+    const remainingVES = Math.max(0, totalVES - totalSpentVES);
+
+    return {
+      totalUSD,
+      totalVES,
+      totalSpentUSD,
+      totalSpentVES,
+      remainingUSD,
+      remainingVES
+    };
   }, [budgetsWithSpent]);
 
   const resetForm = () => {
@@ -258,6 +268,9 @@ export const BudgetView: React.FC<Props> = ({
                     Ejecutado: ${globalSummary.totalSpentUSD.toFixed(0)}
                   </span>
                 </div>
+                <p className="text-[10px] font-black text-emerald-600 mt-2">
+                  Restante: ${globalSummary.remainingUSD.toFixed(0)}
+                </p>
               </div>
 
               <div>
@@ -283,6 +296,9 @@ export const BudgetView: React.FC<Props> = ({
                     Ejecutado: Bs. {globalSummary.totalSpentVES.toFixed(0)}
                   </span>
                 </div>
+                <p className="text-[10px] font-black text-emerald-600 mt-2">
+                  Restante: Bs. {globalSummary.remainingVES.toFixed(0)}
+                </p>
               </div>
             </div>
           </div>

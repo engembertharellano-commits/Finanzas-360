@@ -291,16 +291,28 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
             key={group.type}
             className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden"
           >
-            <div className="px-6 md:px-8 py-5 border-b border-slate-100 bg-slate-50/60">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-2xl bg-white text-slate-700 shadow-sm">
-                  {getAccountIcon(group.type)}
+            <div className="px-6 md:px-8 py-5 border-b border-slate-200 bg-gradient-to-r from-slate-50 via-white to-slate-50">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-4">
+                  <div className="p-3.5 rounded-2xl bg-white text-slate-700 shadow-sm ring-1 ring-slate-200">
+                    {getAccountIcon(group.type)}
+                  </div>
+
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                      {group.type}
+                    </h3>
+                    <span className="inline-flex items-center px-3 py-1 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.18em] shadow-sm">
+                      {group.items.length} {group.items.length === 1 ? 'cuenta' : 'cuentas'}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">{group.type}</h3>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                    {group.items.length} {group.items.length === 1 ? 'cuenta' : 'cuentas'}
-                  </p>
+
+                <div className="hidden md:flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-blue-500" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                    Grupo de cuentas
+                  </span>
                 </div>
               </div>
             </div>
@@ -384,7 +396,7 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
                             <div className="flex items-center gap-2">
                               {isBroker && (
                                 <div
-                                  className={`w-2.5 h-2.5 rounded-full ${
+                                  className={`w-2 h-2 rounded-full ${
                                     acc.balance > 0 ? 'bg-emerald-500' : 'bg-slate-300'
                                   } animate-pulse`}
                                 />

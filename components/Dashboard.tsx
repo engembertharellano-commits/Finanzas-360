@@ -5,7 +5,8 @@ import {
 } from 'recharts';
 import {
   RefreshCw, Info, Wallet,
-  ArrowUpRight, Smartphone, Briefcase, Users
+  ArrowUpRight, Smartphone, Briefcase, Users,
+  TrendingUp, TrendingDown, CalendarDays
 } from 'lucide-react';
 
 interface Props {
@@ -63,6 +64,7 @@ export const Dashboard: React.FC<Props> = ({
   const totalExpenseNormalized = expenseUSD + (expenseVES / exchangeRate);
 
   const netResult = totalIncomeNormalized - totalExpenseNormalized;
+  const isPositiveMonth = netResult >= 0;
 
   const totalThirdPartyUSD = transactions
     .filter(t => t.isThirdParty)
@@ -93,7 +95,9 @@ export const Dashboard: React.FC<Props> = ({
   };
 
   const formatSmallValue = (val: number, curr: 'USD' | 'VES') => {
-    return curr === 'USD' ? `$${val.toLocaleString()}` : `Bs. ${val.toLocaleString()}`;
+    return curr === 'USD'
+      ? `$${val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+      : `Bs. ${val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
   };
 
   const monthName = useMemo(() => {
@@ -113,9 +117,13 @@ export const Dashboard: React.FC<Props> = ({
             <RefreshCw size={22} />
           </button>
           <div className="min-w-0">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Tasa Sincronizada (BCV)</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">
+              Tasa Sincronizada (BCV)
+            </p>
             <div className="flex items-baseline gap-2">
-              <p className="text-xl font-black text-slate-900 leading-none">1 USD = {exchangeRate.toFixed(2)} VES</p>
+              <p className="text-xl font-black text-slate-900 leading-none">
+                1 USD = {exchangeRate.toFixed(2)} VES
+              </p>
               {isSyncingRate && <span className="text-[10px] font-bold text-blue-500 animate-pulse">ACTUALIZANDO...</span>}
             </div>
           </div>
@@ -138,48 +146,177 @@ export const Dashboard: React.FC<Props> = ({
       </div>
 
       <section className="space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-2 px-2">
+        <div className="flex items-center justify-between gap-4 px-2">
           <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
             Flujo Neto Personal <ArrowUpRight size={20} className="text-blue-500" />
           </h2>
-          <div className="text-left md:text-right">
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Balance {monthName}</p>
-            <p className={`text-3xl font-black ${netResult >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-              {netResult >= 0 ? '+' : ''}{formatValue(netResult)}
-            </p>
+        </div>
+
+        <div
+          className={`relative overflow-hidden rounded-[3rem] p-8 md:p-10 border shadow-2xl ${
+            isPositiveMonth
+              ? 'bg-slate-950 border-emerald-900/40 text-white'
+              : 'bg-slate-950 border-rose-900/40 text-white'
+          }`}
+        >
+          <div
+            className={`absolute inset-0 opacity-30 ${
+              isPositiveMonth
+                ? 'bg-[radial-gradient(circle_at_15%_85%,rgba(16,185,129,0.35),transparent_22%),radial-gradient(circle_at_85%_20%,rgba(16,185,129,0.22),transparent_18%),radial-gradient(circle_at_65%_65%,rgba(59,130,246,0.12),transparent_24%)]'
+                : 'bg-[radial-gradient(circle_at_15%_85%,rgba(244,63,94,0.30),transparent_22%),radial-gradient(circle_at_85%_20%,rgba(244,63,94,0.18),transparent_18%),radial-gradient(circle_at_65%_65%,rgba(59,130,246,0.10),transparent_24%)]'
+            }`}
+          />
+          <div className="relative z-10 grid grid-cols-1 xl:grid-cols-12 gap-8 items-stretch">
+            <div className="xl:col-span-7 flex gap-5">
+              <div
+                className={`hidden md:flex h-24 w-24 shrink-0 rounded-[2rem] items-center justify-center border ${
+                  isPositiveMonth
+                    ? 'bg-emerald-500/10 border-emerald-400/30 text-emerald-300 shadow-[0_0_40px_rgba(16,185,129,0.18)]'
+                    : 'bg-rose-500/10 border-rose-400/30 text-rose-300 shadow-[0_0_40px_rgba(244,63,94,0.18)]'
+                }`}
+              >
+                <Wallet size={38} />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-3 mb-3">
+                  <p className={`text-[11px] font-black uppercase tracking-[0.25em] ${
+                    isPositiveMonth ? 'text-emerald-300/90' : 'text-rose-300/90'
+                  }`}>
+                    Balance {monthName}
+                  </p>
+
+                  <div className="ml-auto hidden md:flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-white/90">
+                    <CalendarDays size={16} />
+                    <span className="capitalize">{monthName}</span>
+                  </div>
+                </div>
+
+                <h3
+                  className={`text-5xl md:text-7xl font-black tracking-tighter leading-none ${
+                    isPositiveMonth ? 'text-white' : 'text-white'
+                  }`}
+                >
+                  {netResult >= 0 ? '+' : ''}{formatValue(netResult)}
+                </h3>
+
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  <div
+                    className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-black border ${
+                      isPositiveMonth
+                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-400/20'
+                        : 'bg-rose-500/15 text-rose-300 border-rose-400/20'
+                    }`}
+                  >
+                    {isPositiveMonth ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+                    {isPositiveMonth ? 'Resultado positivo este mes' : 'Resultado negativo este mes'}
+                  </div>
+                </div>
+
+                <p className="mt-5 max-w-[520px] text-sm md:text-base font-medium leading-relaxed text-slate-300">
+                  {isPositiveMonth
+                    ? `Tus ingresos superan a tus gastos en ${formatValue(Math.abs(netResult))} después de todas las transacciones personales.`
+                    : `Tus gastos superan a tus ingresos en ${formatValue(Math.abs(netResult))} después de todas las transacciones personales.`}
+                </p>
+              </div>
+            </div>
+
+            <div className="xl:col-span-5 flex items-center">
+              <div className="w-full h-full min-h-[180px] rounded-[2rem] border border-white/5 bg-white/[0.03] p-6 flex flex-col justify-between">
+                <div className="flex justify-between items-center">
+                  <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
+                    Tendencia mensual
+                  </div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    Visual
+                  </div>
+                </div>
+
+                <div className="relative h-28 mt-4">
+                  <div className="absolute inset-x-0 bottom-0 h-px bg-white/10" />
+                  <svg viewBox="0 0 320 120" className="w-full h-full overflow-visible">
+                    <defs>
+                      <linearGradient id="balanceLine" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor={isPositiveMonth ? '#10b981' : '#fb7185'} />
+                        <stop offset="100%" stopColor="#7dd3fc" />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d="M8 105 C 40 105, 55 80, 82 82 C 106 84, 120 95, 145 76 C 168 58, 184 44, 210 50 C 235 56, 248 34, 276 26 C 292 22, 305 16, 312 10"
+                      fill="none"
+                      stroke="url(#balanceLine)"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                    />
+                    <circle cx="312" cy="10" r="6" fill={isPositiveMonth ? '#86efac' : '#fda4af'} />
+                  </svg>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div className="border-r border-white/10 pr-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">
+                      Ingresos Totales
+                    </p>
+                    <p className="text-2xl font-black text-white">
+                      {formatValue(totalIncomeNormalized)}
+                    </p>
+                  </div>
+                  <div className="pl-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">
+                      Gastos Totales
+                    </p>
+                    <p className="text-2xl font-black text-white">
+                      {formatValue(totalExpenseNormalized)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-emerald-600 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-emerald-100 group transition-all hover:-translate-y-1">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-100/70 mb-3">Tus Ingresos Reales</p>
-            <h3 className="text-5xl md:text-6xl font-black mb-4 tracking-tighter">{formatValue(totalIncomeNormalized)}</h3>
-
-            <div className="mb-8">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100/60 mb-1">
-                Ingreso histórico del mes en USD
+          <div className="bg-emerald-600 rounded-[3rem] p-8 md:p-9 text-white relative overflow-hidden shadow-2xl shadow-emerald-100 transition-all hover:-translate-y-1">
+            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.18),transparent_20%),radial-gradient(circle_at_80%_85%,rgba(255,255,255,0.12),transparent_18%)]" />
+            <div className="relative z-10">
+              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-100/70 mb-3">
+                Tus Ingresos Reales
               </p>
-              <p className="text-2xl font-black text-white">
-                ${totalIncomeHistoricalUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            </div>
+              <h3 className="text-4xl md:text-5xl font-black mb-4 tracking-tighter">
+                {formatValue(totalIncomeNormalized)}
+              </h3>
 
-            <div className="flex justify-between items-end border-t border-white/20 pt-8">
-              <div>
-                <p className="text-[9px] font-black uppercase text-emerald-100/50 mb-1.5">Efectivo USD</p>
-                <p className="text-xl font-black">{formatSmallValue(incomeUSD, 'USD')}</p>
+              <div className="mb-6 rounded-2xl bg-white/10 border border-white/10 px-4 py-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100/60 mb-1">
+                  Ingreso histórico del mes en USD
+                </p>
+                <p className="text-2xl font-black text-white">
+                  ${totalIncomeHistoricalUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
               </div>
-              <div className="text-right">
-                <p className="text-[9px] font-black uppercase text-emerald-100/50 mb-1.5">Bolívares VES</p>
-                <p className="text-xl font-black">{formatSmallValue(incomeVES, 'VES')}</p>
+
+              <div className="flex justify-between items-end border-t border-white/20 pt-6">
+                <div>
+                  <p className="text-[9px] font-black uppercase text-emerald-100/50 mb-1.5">Efectivo USD</p>
+                  <p className="text-xl font-black">{formatSmallValue(incomeUSD, 'USD')}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-black uppercase text-emerald-100/50 mb-1.5">Bolívares VES</p>
+                  <p className="text-xl font-black">{formatSmallValue(incomeVES, 'VES')}</p>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-[3rem] p-10 border border-slate-100 shadow-sm relative overflow-hidden group transition-all hover:-translate-y-1">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3">Tus Gastos Personales</p>
-            <h3 className="text-5xl md:text-6xl font-black mb-12 text-slate-900 tracking-tighter">{formatValue(totalExpenseNormalized)}</h3>
-            <div className="flex justify-between items-end border-t border-slate-50 pt-8">
+          <div className="bg-white rounded-[3rem] p-8 md:p-9 border border-slate-100 shadow-sm relative overflow-hidden transition-all hover:-translate-y-1">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3">
+              Tus Gastos Personales
+            </p>
+            <h3 className="text-4xl md:text-5xl font-black mb-8 text-slate-900 tracking-tighter">
+              {formatValue(totalExpenseNormalized)}
+            </h3>
+
+            <div className="flex justify-between items-end border-t border-slate-50 pt-6">
               <div>
                 <p className="text-[9px] font-black uppercase text-slate-400 mb-1.5">Débito USD</p>
                 <p className="text-xl font-black text-slate-700">{formatSmallValue(expenseUSD, 'USD')}</p>
@@ -210,84 +347,4 @@ export const Dashboard: React.FC<Props> = ({
             <div className="space-y-5 pt-10 border-t border-white/5">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-black text-slate-500 uppercase">Dinero Ajeno</span>
-                <span className="text-xl font-black text-emerald-400">-{formatValue(totalThirdPartyUSD)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black text-slate-500 uppercase">Saldo en Bancos</span>
-                <span className="text-xl font-black">{formatValue(totalLiquidUSD)}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="xl:col-span-8 bg-white rounded-[3.5rem] p-8 border border-slate-100 shadow-sm flex flex-col md:flex-row gap-10">
-            <div className="flex-1 min-w-0">
-              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-8">Distribución por Entidad</h4>
-              <div className="space-y-5 max-h-[300px] overflow-y-auto pr-3 custom-scrollbar">
-                {accounts.map(acc => (
-                  <div key={acc.id} className="flex items-center justify-between group p-3 hover:bg-slate-50 rounded-[1.5rem] transition-all border border-transparent hover:border-slate-100">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                        {acc.type === 'Billetera Virtual' ? <Smartphone size={18} /> : <Wallet size={18} />}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-black text-slate-900 truncate">{acc.name}</p>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{acc.type}</p>
-                      </div>
-                    </div>
-                    <p className="text-base font-black text-slate-800">{acc.currency === 'USD' ? '$' : 'Bs.'} {acc.balance.toLocaleString()}</p>
-                  </div>
-                ))}
-                {accounts.length === 0 && (
-                  <div className="py-10 text-center opacity-30 italic font-medium">No hay cuentas registradas</div>
-                )}
-              </div>
-            </div>
-            <div className="w-full md:w-[280px] flex flex-col items-center justify-center pt-10 md:pt-0 border-t md:border-t-0 md:border-l border-slate-50">
-              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 text-center">Composición de Caja</h4>
-              <div className="w-full h-[240px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsPieChart>
-                    <Pie data={chartData} innerRadius={75} outerRadius={105} paddingAngle={10} dataKey="value" stroke="none">
-                      {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '15px' }}
-                      itemStyle={{ fontWeight: '800', fontSize: '12px' }}
-                    />
-                  </RechartsPieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="mt-6 flex flex-wrap justify-center gap-5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
-                  <span className="text-[9px] font-black uppercase text-slate-500">Propio</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
-                  <span className="text-[9px] font-black uppercase text-slate-500">Custodia</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-2">
-          <div className="bg-indigo-50/70 border-2 border-indigo-100 p-6 rounded-[2.5rem] flex items-center gap-5 group transition-all hover:bg-indigo-50">
-            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm"><Briefcase size={22} /></div>
-            <div>
-              <p className="text-[11px] font-black text-indigo-700 uppercase tracking-widest leading-none mb-1">Fondo de Trabajo</p>
-              <p className="text-xs font-bold text-indigo-400 italic">Anticipos y gastos corporativos aislados.</p>
-            </div>
-          </div>
-          <div className="bg-emerald-50/70 border-2 border-emerald-100 p-6 rounded-[2.5rem] flex items-center gap-5 group transition-all hover:bg-emerald-50">
-            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm"><Users size={22} /></div>
-            <div>
-              <p className="text-[11px] font-black text-emerald-700 uppercase tracking-widest leading-none mb-1">Gestión de Terceros</p>
-              <p className="text-xs font-bold text-emerald-400 italic">Dinero bajo tu cuidado pero de otros dueños.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-};
+                <span className="text-xl font-black text-emerald-400

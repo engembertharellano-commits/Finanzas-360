@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Transaction, BankAccount, Investment, Budget } from '../types';
+import React, { useState } from 'react';
+import { Transaction, BankAccount, Investment } from '../types';
 import {
   PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip
 } from 'recharts';
@@ -13,14 +13,16 @@ import {
   Users,
   TrendingUp,
   TrendingDown,
-  CalendarDays
+  CalendarDays,
+  Eye,
+  Landmark
 } from 'lucide-react';
 
 interface Props {
   accounts: BankAccount[];
   transactions: Transaction[];
   investments: Investment[];
-  budgets: Budget[];
+  budgets: any[];
   selectedMonth: string;
   exchangeRate: number;
   rateSourceUrl?: string;
@@ -75,7 +77,6 @@ export const Dashboard: React.FC<Props> = ({
     .reduce((s, t) => s + t.amount, 0);
 
   const totalExpenseNormalized = expenseUSD + (expenseVES / exchangeRate);
-
   const netResult = totalIncomeNormalized - totalExpenseNormalized;
 
   const totalThirdPartyUSD = transactions
@@ -90,9 +91,52 @@ export const Dashboard: React.FC<Props> = ({
     return acc + (curr.type === 'Tarjeta de Crédito' ? -val : val);
   }, 0);
 
-  const realPersonalNetWorth = totalLiquidUSD - totalThirdPartyUSD + investments.reduce((acc, inv) => {
-    return acc + (inv.currency === 'USD' ? inv.value : inv.value / exchangeRate);
+  const totalInvestedUSD = investments.reduce((acc, inv) => {
+    const rawValue =
+      typeof inv.value === 'number' && Number.isFinite(inv.value)
+        ? inv.value
+        : typeof inv.currentValue === 'number' && Number.isFinite(inv.currentValue)
+        ? inv.currentValue
+        : typeof inv.marketValue === 'number' && Number.isFinite(inv.marketValue)
+        ? inv.marketValue
+        : typeof inv.totalValue === 'number' && Number.isFinite(inv.totalValue)
+        ? inv.totalValue
+        : typeof inv.amount === 'number' && Number.isFinite(inv.amount)
+        ? inv.amount
+        : typeof inv.quantity === 'number' &&
+          Number.isFinite(inv.quantity) &&
+          typeof inv.currentMarketPrice === 'number' &&
+          Number.isFinite(inv.currentMarketPrice)
+        ? inv.quantity * inv.currentMarketPrice
+        : typeof inv.quantity === 'number' &&
+          Number.isFinite(inv.quantity) &&
+          typeof inv.currentPrice === 'number' &&
+          Number.isFinite(inv.currentPrice)
+        ? inv.quantity * inv.currentPrice
+        : typeof inv.quantity === 'number' &&
+          Number.isFinite(inv.quantity) &&
+          typeof inv.price === 'number' &&
+          Number.isFinite(inv.price)
+        ? inv.quantity * inv.price
+        : typeof inv.quantity === 'number' &&
+          Number.isFinite(inv.quantity) &&
+          typeof inv.purchasePrice === 'number' &&
+          Number.isFinite(inv.purchasePrice)
+        ? inv.quantity * inv.purchasePrice
+        : typeof inv.quantity === 'number' &&
+          Number.isFinite(inv.quantity) &&
+          typeof inv.buyPrice === 'number' &&
+          Number.isFinite(inv.buyPrice)
+        ? inv.quantity * inv.buyPrice
+        : 0;
+
+    const normalized = inv.currency === 'VES' ? rawValue / exchangeRate : rawValue;
+    return acc + normalized;
   }, 0);
+
+  const currentTotalUSD = totalLiquidUSD - totalThirdPartyUSD + totalInvestedUSD;
+  const currentTotalVES = currentTotalUSD * exchangeRate;
+  const realPersonalNetWorth = currentTotalUSD;
 
   const chartData = [
     { name: 'MI DINERO', value: Math.max(0, totalLiquidUSD - totalThirdPartyUSD), color: '#3b82f6' },
@@ -104,6 +148,13 @@ export const Dashboard: React.FC<Props> = ({
       return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
     return `Bs. ${(val * exchangeRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const formatMoney = (val: number, currency: 'USD' | 'VES', digits = 2) => {
+    const safe = Number.isFinite(val) ? val : 0;
+    return currency === 'USD'
+      ? `$${safe.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`
+      : `Bs. ${safe.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
   };
 
   const formatSmallValue = (val: number, curr: 'USD' | 'VES') => {
@@ -118,9 +169,7 @@ export const Dashboard: React.FC<Props> = ({
   const monthNameCapitalized = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
   const balanceAccentClasses =
-    netResult >= 0
-      ? 'text-emerald-300'
-      : 'text-rose-300';
+    netResult >= 0 ? 'text-emerald-300' : 'text-rose-300';
 
   const balanceBadgeClasses =
     netResult >= 0
@@ -176,6 +225,87 @@ export const Dashboard: React.FC<Props> = ({
       </div>
 
       <section className="space-y-6">
+        {/* SALDO ACTUAL TOTAL */}
+        <div className="rounded-[2.8rem] border border-emerald-300/80 bg-white shadow-[0_20px_60px_-35px_rgba(16,185,129,0.45)] overflow-hidden">
+          <div className="grid grid-cols-1 xl:grid-cols-[1.05fr_0.95fr] gap-0">
+            <div className="p-8 md:p-9 border-b xl:border-b-0 xl:border-r border-slate-100">
+              <div className="flex items-start gap-5">
+                <div className="w-24 h-24 rounded-[2rem] bg-emerald-950 text-emerald-300 flex items-center justify-center shadow-[0_18px_35px_-18px_rgba(5,150,105,0.75)] shrink-0">
+                  <Wallet size={40} />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap mb-3">
+                    <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-700">
+                      Saldo actual total
+                    </p>
+                    <Info size={16} className="text-slate-300" />
+                  </div>
+
+                  <h3 className="text-5xl md:text-6xl font-black tracking-tighter text-emerald-950 leading-none">
+                    {formatMoney(currentTotalUSD, 'USD')}
+                  </h3>
+
+                  <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700">
+                    <RefreshCw size={14} />
+                    <span className="text-sm font-black">
+                      Equivalente: {formatMoney(currentTotalVES, 'VES')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-8 md:p-9">
+              <div className="flex items-center justify-between gap-3 mb-6">
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">
+                  Desglose
+                </p>
+
+                <button className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-100 font-black text-sm">
+                  <Eye size={16} />
+                  Ver detalle
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-slate-50 rounded-[2rem] px-5 py-5 border border-slate-100">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                      <Landmark size={24} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-slate-700">
+                        Liquidez disponible
+                      </p>
+                      <p className="text-3xl font-black text-emerald-700 mt-1">
+                        {formatMoney(Math.max(0, totalLiquidUSD - totalThirdPartyUSD), 'USD')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 rounded-[2rem] px-5 py-5 border border-slate-100">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-violet-100 text-violet-700 flex items-center justify-center">
+                      <TrendingUp size={24} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-slate-700">
+                        Invertido
+                      </p>
+                      <p className="text-3xl font-black text-violet-700 mt-1">
+                        {formatMoney(totalInvestedUSD, 'USD')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* FLUJO NETO */}
         <div className="flex items-center gap-2 px-2">
           <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
             Flujo Neto Personal
@@ -296,6 +426,7 @@ export const Dashboard: React.FC<Props> = ({
           </div>
         </div>
 
+        {/* INGRESOS Y GASTOS */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
           <div className="relative overflow-hidden rounded-[2.8rem] border border-emerald-500/20 bg-emerald-700 shadow-[0_25px_60px_-30px_rgba(5,150,105,0.55)]">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.12),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(110,231,183,0.22),transparent_24%)]" />
@@ -401,6 +532,7 @@ export const Dashboard: React.FC<Props> = ({
         </div>
       </section>
 
+      {/* PATRIMONIO */}
       <section className="space-y-6">
         <h2 className="text-xl font-black text-slate-900 flex items-center gap-2 px-2">
           Patrimonio Neto Real <Info size={16} className="text-slate-300" />

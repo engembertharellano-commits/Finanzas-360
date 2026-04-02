@@ -148,7 +148,10 @@ export const Dashboard: React.FC<Props> = ({
     return {
       id: inv.id,
       name: inv.name || inv.ticker || inv.symbol || 'Inversión',
-      platform: inv.platform || inv.brokerId || inv.ticker || 'Sin plataforma',
+     platform:
+  inv.platform === '03be0d06-553a-4a0e-bb42-9983d59cbd19'
+    ? 'Hapi'
+    : inv.platform || inv.brokerName || 'Manual',
       currency,
       rawValue,
       valueUSD

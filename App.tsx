@@ -941,24 +941,7 @@ const App: React.FC = () => {
         </div>
 
         <div className="max-w-7xl mx-auto space-y-8 md:space-y-10">
-          {activeView === 'dashboard' && (
-            <section className="bg-white border border-slate-100 rounded-3xl p-6 md:p-7 shadow-sm">
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.2em] font-black text-slate-400">Monto de inversión</p>
-                  <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 mt-1">
-                    {formatCurrency(totalInvestmentUSD, 'USD')}
-                  </h2>
-                  <p className="text-sm font-semibold text-slate-500 mt-1">
-                    Equivalente aprox.: {formatCurrency(totalInvestmentVES, 'VES')}
-                  </p>
-                </div>
-                <div className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                  <TrendingUp size={26} />
-                </div>
-              </div>
-            </section>
-          )}
+       
 
           <div className="space-y-12">
             {activeView === 'dashboard' && (

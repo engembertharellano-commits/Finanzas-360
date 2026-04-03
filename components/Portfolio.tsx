@@ -494,10 +494,35 @@ export const Portfolio: React.FC<Props> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-black text-slate-900">Inversiones</h2>
-          <p className="text-slate-500 text-sm font-medium">Gestiona tus activos y tenencia real</p>
-        </div>
+       <div className="space-y-4">
+  <div>
+    <h2 className="text-2xl font-black text-slate-900">Inversiones</h2>
+    <p className="text-slate-500 text-sm font-medium">
+      Gestiona tus activos y tenencia real
+    </p>
+  </div>
+
+  {/* RESUMEN DISCRETO DE INVERSIÓN */}
+  <div className="bg-white border border-slate-100 rounded-2xl px-6 py-4 flex items-center justify-between shadow-sm">
+    <div>
+      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
+        Monto invertido
+      </p>
+      <p className="text-xl font-black text-violet-600">
+        ${investments.reduce((acc, inv) => acc + (inv.value || 0), 0).toLocaleString()}
+      </p>
+    </div>
+
+    <div className="text-right">
+      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
+        Activos
+      </p>
+      <p className="text-sm font-black text-slate-700">
+        {investments.length}
+      </p>
+    </div>
+  </div>
+</div>
         {!showForm && (
           <div className="flex gap-3 w-full md:w-auto">
             <button

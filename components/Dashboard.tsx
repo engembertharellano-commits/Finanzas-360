@@ -145,17 +145,19 @@ export const Dashboard: React.FC<Props> = ({
     const currency = inv.currency === 'VES' ? 'VES' : 'USD';
     const valueUSD = currency === 'VES' ? rawValue / exchangeRate : rawValue;
 
-    return {
-      id: inv.id,
-      name: inv.name || inv.ticker || inv.symbol || 'Inversión',
-     platform:
-  inv.platform === '03be0d06-553a-4a0e-bb42-9983d59cbd19'
-    ? 'Hapi'
-    : inv.platform || inv.brokerName || 'Manual',
-      currency,
-      rawValue,
-      valueUSD
-    };
+    const relatedBrokerName = accounts.find(acc => acc.id === inv.brokerId)?.name;
+
+return {
+  id: inv.id,
+  name: inv.name || inv.ticker || inv.symbol || 'Inversión',
+  platform:
+    relatedBrokerName ||
+    inv.platform ||
+    'Manual',
+  currency,
+  rawValue,
+  valueUSD
+};
   });
 
   const totalInvestedUSD = normalizedInvestments.reduce((acc, inv) => acc + inv.valueUSD, 0);

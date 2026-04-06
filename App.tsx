@@ -804,6 +804,16 @@ const App: React.FC = () => {
               }}
               icon={<Wallet size={20} />}
               label="Historial Movimientos"
+              />
+
+<NavItem
+  active={activeView === 'income'}
+  onClick={() => {
+    setActiveView('income');
+    setIsMobileMenuOpen(false);
+  }}
+  icon={<TrendingUp size={20} />}
+  label="Ingresos"
             />
             <NavItem
               active={activeView === 'portfolio'}
@@ -976,6 +986,14 @@ const App: React.FC = () => {
                 incomeCategories={incomeCategories}
               />
             )}
+            {activeView === 'income' && (
+  <IngresosModule
+    transactions={transactions}
+    selectedMonth={selectedMonth}
+    exchangeRate={exchangeRate}
+    incomeCategories={incomeCategories}
+  />
+)}
 
             {activeView === 'work' && (
               <WorkManagement

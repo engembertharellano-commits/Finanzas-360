@@ -41,6 +41,7 @@ import { CustodyManagement } from './components/CustodyManagement';
 import { Auth } from './components/Auth';
 import { FinanceAIService } from './services/geminiService';
 import { FinancialPlanning } from './components/planning/FinancialPlanning';
+import IngresosModule from './components/IngresosModule';
 
 type View =
   | 'dashboard'

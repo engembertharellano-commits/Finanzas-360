@@ -1,86 +1,98 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 
-export default function IngresosModule() {
+export default function IngresosModule({
+  transactions,
+  selectedMonth,
+  exchangeRate,
+  incomeCategories
+}) {
 
-  const [transactions, setTransactions] = useState([]);
-  const [totalIncome, setTotalIncome] = useState(0);
-  const [incomeByCategory, setIncomeByCategory] = useState({});
+  // Filtrar ingresos del mes seleccionado
+  const incomes = transactions.filter(t => {
 
-  useEffect(() => {
-    loadIncome();
-  }, []);
+    const date = new Date(t.date);
+    const month = date.getMonth();
+    const year = date.getFullYear();
 
-  const loadIncome = async () => {
-    try {
+    const selected = new Date(selectedMonth);
 
-      // Aquí llamas tu API o tu servicio de transacciones
-      const response = await fetch("/api/transactions");
-      const data = await response.json();
+    const sameMonth =
+      month === selected.getMonth() &&
+      year === selected.getFullYear();
 
-      // Filtrar solo ingresos
-      const income = data.filter(t => t.type === "income");
+    const isIncome =
+      t.type === "income" ||
+      incomeCategories?.includes(t.category);
 
-      setTransactions(income);
+    return sameMonth && isIncome;
 
-      // Calcular total ingresos
-      const total = income.reduce((acc, t) => acc + Number(t.amount), 0);
-      setTotalIncome(total);
+  });
 
-      // Agrupar por categoria
-      const categories = {};
+  // Total ingresos
+  const totalIncome = incomes.reduce(
+    (acc, t) => acc + Number(t.amount),
+    0
+  );
 
-      income.forEach(t => {
-        const cat = t.category || "Otros";
+  // Agrupar por categoría
+  const incomeByCategory = {};
 
-        if (!categories[cat]) {
-          categories[cat] = 0;
-        }
+  incomes.forEach(t => {
 
-        categories[cat] += Number(t.amount);
-      });
+    const cat = t.category || "Otros";
 
-      setIncomeByCategory(categories);
-
-    } catch (error) {
-      console.error("Error cargando ingresos:", error);
+    if (!incomeByCategory[cat]) {
+      incomeByCategory[cat] = 0;
     }
-  };
+
+    incomeByCategory[cat] += Number(t.amount);
+
+  });
 
   return (
     <div style={{ padding: "20px" }}>
 
-      <h2 style={{ marginBottom: "20px" }}>Ingresos</h2>
+      <h2 style={{ marginBottom: "20px" }}>
+        Ingresos
+      </h2>
 
       {/* TOTAL INGRESOS */}
+
       <div
         style={{
           background: "#fff",
           borderRadius: "12px",
           padding: "20px",
-          marginBottom: "20px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
+          marginBottom: "20px"
         }}
       >
+
         <h4>Total ingresos</h4>
-        <h1 style={{ color: "#0f9d58" }}>
+
+        <h1 style={{ color: "#22c55e" }}>
           ${totalIncome.toFixed(2)}
         </h1>
+
       </div>
 
-
       {/* INGRESOS POR CATEGORIA */}
+
       <div
         style={{
           background: "#fff",
           borderRadius: "12px",
           padding: "20px",
-          marginBottom: "20px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
+          marginBottom: "20px"
         }}
       >
+
         <h4 style={{ marginBottom: "15px" }}>
           Ingresos por categoría
         </h4>
+
+        {Object.keys(incomeByCategory).length === 0 && (
+          <p>No hay ingresos este mes</p>
+        )}
 
         {Object.keys(incomeByCategory).map(cat => (
 
@@ -89,44 +101,44 @@ export default function IngresosModule() {
             style={{
               display: "flex",
               justifyContent: "space-between",
-              marginBottom: "10px",
-              paddingBottom: "5px",
-              borderBottom: "1px solid #eee"
+              marginBottom: "10px"
             }}
           >
+
             <span>{cat}</span>
 
             <strong>
               ${incomeByCategory[cat].toFixed(2)}
             </strong>
+
           </div>
 
         ))}
 
       </div>
 
-
       {/* GRAFICO SIMPLE */}
+
       <div
         style={{
           background: "#fff",
           borderRadius: "12px",
-          padding: "20px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
+          padding: "20px"
         }}
       >
+
         <h4>Gráfico ingresos</h4>
 
         <div style={{ marginTop: "20px" }}>
 
-          {transactions.slice(0, 10).map((t, i) => (
+          {incomes.slice(0,10).map((t,i) => (
 
             <div
               key={i}
               style={{
                 height: "10px",
                 width: `${t.amount / 10}%`,
-                background: "#4caf50",
+                background: "#22c55e",
                 marginBottom: "6px",
                 borderRadius: "4px"
               }}

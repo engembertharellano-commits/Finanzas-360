@@ -47,6 +47,7 @@ type View =
   | 'dashboard'
   | 'accounts'
   | 'transactions'
+  | 'income'
   | 'portfolio'
   | 'budget'
   | 'ai'

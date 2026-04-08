@@ -61,7 +61,7 @@ if (totalSueldo === 0) return 0;
 return (value / totalSueldo) * 100;
 };
 
-/* MES CORRECTO */
+// CALCULO SEGURO DEL MES (sin errores de zona horaria)
 
 const months = [
 "Enero","Febrero","Marzo","Abril","Mayo","Junio",
@@ -69,7 +69,6 @@ const months = [
 ];
 
 const monthIndex = Number(selectedMonth.split("-")[1]) - 1;
-
 const monthName = months[monthIndex];
 
 return (

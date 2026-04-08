@@ -70,6 +70,32 @@ export default function IngresosModule({
     "bg-indigo-500"
   ];
 
+  const donutColors = [
+    "#3b82f6",
+    "#22c55e",
+    "#f59e0b",
+    "#a855f7",
+    "#ec4899"
+  ];
+
+  const donutData = Object.entries(data.sueldo).map(([name,value]) => ({
+    name,
+    value,
+    percent: percent(value)
+  }));
+
+  const donutGradient = donutData
+    .map((item,i)=>{
+      const start = donutData
+        .slice(0,i)
+        .reduce((a,b)=>a+b.percent,0);
+
+      const end = start + item.percent;
+
+      return `${donutColors[i % donutColors.length]} ${start}% ${end}%`;
+    })
+    .join(",");
+
   const monthName =
     new Date(selectedMonth).toLocaleString("es-ES",{month:"long"});
 
@@ -99,9 +125,32 @@ export default function IngresosModule({
           Salario del mes de {monthName}
         </h3>
 
-        <p className="text-2xl font-bold text-green-600 mb-4">
-          ${totalSueldo.toFixed(2)}
-        </p>
+        {/* DONUT */}
+
+        <div className="flex flex-col items-center mt-6 mb-6">
+
+          <div
+            className="w-40 h-40 rounded-full flex items-center justify-center"
+            style={{
+              background: `conic-gradient(${donutGradient})`
+            }}
+          >
+
+            <div className="bg-white w-24 h-24 rounded-full flex flex-col items-center justify-center shadow">
+
+              <span className="text-xs text-gray-500">
+                Salario
+              </span>
+
+              <span className="font-bold text-green-600">
+                ${totalSueldo.toFixed(2)}
+              </span>
+
+            </div>
+
+          </div>
+
+        </div>
 
         {Object.entries(data.sueldo).map(([name,value], index) => (
 

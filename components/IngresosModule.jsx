@@ -61,8 +61,8 @@ export default function IngresosModule({
     return (value / totalSueldo) * 100;
   };
 
-  const monthName =
-    new Date(selectedMonth).toLocaleString("es-ES",{month:"long"});
+ const monthName =
+  new Date(selectedMonth + "-01").toLocaleString("es-ES",{month:"long"});
 
 
   return (

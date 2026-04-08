@@ -117,28 +117,34 @@ export default function IngresosModule({
 
       </div>
 
+
       {/* SALARIO DEL MES */}
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border">
 
-        <h3 className="font-semibold">
+        <h3 className="font-semibold mb-2">
           Salario del mes de {monthName}
         </h3>
 
-        {/* DONUT */}
+        <p className="text-2xl font-bold text-green-600 mb-6">
+          ${totalSueldo.toFixed(2)}
+        </p>
 
-        <div className="flex flex-col items-center mt-6 mb-6">
+
+        <div className="flex gap-10 items-center">
+
+          {/* DONUT */}
 
           <div
-            className="w-40 h-40 rounded-full flex items-center justify-center"
+            className="w-56 h-56 rounded-full flex items-center justify-center"
             style={{
               background: `conic-gradient(${donutGradient})`
             }}
           >
 
-            <div className="bg-white w-24 h-24 rounded-full flex flex-col items-center justify-center shadow">
+            <div className="bg-white w-32 h-32 rounded-full flex flex-col items-center justify-center shadow">
 
-              <span className="text-xs text-gray-500">
+              <span className="text-sm text-gray-500">
                 Salario
               </span>
 
@@ -150,44 +156,52 @@ export default function IngresosModule({
 
           </div>
 
-        </div>
 
-        {Object.entries(data.sueldo).map(([name,value], index) => (
+          {/* LISTA SUELDOS */}
 
-          <div key={name} className="mb-3">
+          <div className="flex-1">
 
-            <div className="flex justify-between text-sm mb-1">
-
-              <span>{name}</span>
-
-              <span className="flex gap-3">
-
-                <span className="text-gray-600">
-                  ${value.toFixed(2)}
-                </span>
-
-                <span className="font-semibold">
-                  {percent(value).toFixed(0)}%
-                </span>
-
-              </span>
-
-            </div>
-
-            <div className="bg-gray-200 h-3 rounded-full overflow-hidden">
+            {Object.entries(data.sueldo).map(([name,value], index) => (
 
               <div
-                className={`${colors[index % colors.length]} h-3`}
-                style={{ width: `${percent(value)}%` }}
-              />
+                key={name}
+                className="flex justify-between items-center mb-4 border-b pb-2"
+              >
 
-            </div>
+                <div className="flex items-center gap-2">
+
+                  <div
+                    className={`w-3 h-3 rounded ${colors[index % colors.length]}`}
+                  />
+
+                  <span className="text-sm">
+                    {name}
+                  </span>
+
+                </div>
+
+                <div className="text-right">
+
+                  <div className="text-sm text-gray-600">
+                    ${value.toFixed(2)}
+                  </div>
+
+                  <div className="text-xs font-semibold">
+                    {percent(value).toFixed(0)}%
+                  </div>
+
+                </div>
+
+              </div>
+
+            ))}
 
           </div>
 
-        ))}
+        </div>
 
       </div>
+
 
       {/* OTROS INGRESOS */}
 

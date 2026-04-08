@@ -6,17 +6,15 @@ export default function IngresosModule({
   exchangeRate
 }) {
 
-  const incomeBreakdown = useMemo(() => {
+  const data = useMemo(() => {
 
-    const map = {};
+    const sueldo = {};
+    const otros = {};
 
     transactions.forEach(tx => {
 
       if (tx.type !== "Ingreso") return;
-
       if (!tx.date.startsWith(selectedMonth)) return;
-
-      if (tx.category !== "Sueldo") return;
 
       let amount = Number(tx.amount) || 0;
 
@@ -24,23 +22,36 @@ export default function IngresosModule({
         amount = amount / exchangeRate;
       }
 
-      const key = tx.description || "OTROS";
+      if (tx.category === "Sueldo") {
 
-      if (!map[key]) {
-        map[key] = 0;
+        const key = tx.description || "OTROS";
+
+        if (!sueldo[key]) sueldo[key] = 0;
+
+        sueldo[key] += amount;
+
+      } else {
+
+        const key = tx.category || "OTROS";
+
+        if (!otros[key]) otros[key] = 0;
+
+        otros[key] += amount;
+
       }
-
-      map[key] += amount;
 
     });
 
-    return map;
+    return { sueldo, otros };
 
   }, [transactions, selectedMonth, exchangeRate]);
 
 
-  const totalIncome = Object.values(incomeBreakdown)
-    .reduce((a,b)=>a+b,0);
+
+  const totalIncome =
+    [...Object.values(data.sueldo), ...Object.values(data.otros)]
+      .reduce((a,b)=>a+b,0);
+
 
 
   const percent = (value) => {
@@ -49,10 +60,10 @@ export default function IngresosModule({
   };
 
 
+
   return (
 
     <div className="space-y-6">
-
 
       {/* TOTAL */}
 
@@ -78,7 +89,8 @@ export default function IngresosModule({
           Distribución
         </h3>
 
-        {Object.entries(incomeBreakdown).map(([name,value]) => (
+        {[...Object.entries(data.sueldo), ...Object.entries(data.otros)]
+          .map(([name,value]) => (
 
           <div key={name} className="mb-3">
 
@@ -104,15 +116,44 @@ export default function IngresosModule({
 
 
 
-      {/* DESGLOSE */}
+      {/* SUELDO */}
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border">
 
         <h3 className="font-semibold mb-4">
-          Desglose
+          Sueldo
         </h3>
 
-        {Object.entries(incomeBreakdown).map(([name,value]) => (
+        {Object.entries(data.sueldo).map(([name,value]) => (
+
+          <div
+            key={name}
+            className="flex justify-between mb-2"
+          >
+
+            <span>{name}</span>
+
+            <span>
+              ${value.toFixed(2)}
+            </span>
+
+          </div>
+
+        ))}
+
+      </div>
+
+
+
+      {/* OTROS INGRESOS */}
+
+      <div className="bg-white rounded-2xl p-6 shadow-sm border">
+
+        <h3 className="font-semibold mb-4">
+          Otros ingresos
+        </h3>
+
+        {Object.entries(data.otros).map(([name,value]) => (
 
           <div
             key={name}

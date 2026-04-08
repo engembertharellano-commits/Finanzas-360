@@ -2,24 +2,25 @@ import React from "react";
 
 export default function IngresosModule({
   transactions,
-  selectedMonth,
   exchangeRate,
   incomeCategories
 }) {
 
-  // Filtrar ingresos (sin filtrar por fecha para evitar errores)
-  const incomes = transactions.filter(t => {
+  // Detectar ingresos
+  const incomes = transactions.filter(t =>
+    t.type === "income" || incomeCategories?.includes(t.category)
+  );
 
-    return (
-      t.type === "income" ||
-      incomeCategories?.includes(t.category)
-    );
-
-  });
+  // Convertir Bs a USD
+  const toUSD = (amount) => {
+    const value = Number(amount) || 0;
+    if (!exchangeRate || exchangeRate === 0) return value;
+    return value / exchangeRate;
+  };
 
   // Total ingresos
   const totalIncome = incomes.reduce(
-    (acc, t) => acc + Number(t.amount),
+    (acc, t) => acc + toUSD(t.amount),
     0
   );
 
@@ -34,111 +35,125 @@ export default function IngresosModule({
       incomeByCategory[cat] = 0;
     }
 
-    incomeByCategory[cat] += Number(t.amount);
+    incomeByCategory[cat] += toUSD(t.amount);
 
   });
 
-  return (
-    <div style={{ padding: "20px" }}>
+  const categories = Object.keys(incomeByCategory);
 
-      <h2 style={{ marginBottom: "20px" }}>
+  const maxValue = Math.max(...Object.values(incomeByCategory), 1);
+
+  return (
+
+    <div style={{ padding: "30px" }}>
+
+      {/* TITULO */}
+
+      <h2 style={{
+        fontSize: "22px",
+        fontWeight: "600",
+        marginBottom: "25px"
+      }}>
         Ingresos
       </h2>
 
-      {/* TOTAL INGRESOS */}
+      {/* CARD TOTAL INGRESOS */}
 
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: "12px",
-          padding: "20px",
-          marginBottom: "20px"
-        }}
-      >
+      <div style={{
+        background: "linear-gradient(135deg,#0f172a,#1e293b)",
+        color: "white",
+        borderRadius: "16px",
+        padding: "30px",
+        marginBottom: "30px",
+        boxShadow: "0 10px 25px rgba(0,0,0,0.15)"
+      }}>
 
-        <h4>Total ingresos</h4>
+        <div style={{
+          fontSize: "14px",
+          opacity: 0.8
+        }}>
+          Ingresos Totales
+        </div>
 
-        <h1 style={{ color: "#22c55e" }}>
+        <div style={{
+          fontSize: "40px",
+          fontWeight: "700",
+          marginTop: "5px",
+          color: "#4ade80"
+        }}>
           ${totalIncome.toFixed(2)}
-        </h1>
+        </div>
 
       </div>
 
       {/* INGRESOS POR CATEGORIA */}
 
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: "12px",
-          padding: "20px",
-          marginBottom: "20px"
-        }}
-      >
+      <div style={{
+        background: "white",
+        borderRadius: "16px",
+        padding: "25px",
+        boxShadow: "0 5px 15px rgba(0,0,0,0.05)"
+      }}>
 
-        <h4 style={{ marginBottom: "15px" }}>
+        <h3 style={{
+          marginBottom: "20px",
+          fontSize: "18px",
+          fontWeight: "600"
+        }}>
           Ingresos por categoría
-        </h4>
+        </h3>
 
-        {Object.keys(incomeByCategory).length === 0 && (
+        {categories.length === 0 && (
           <p>No hay ingresos registrados</p>
         )}
 
-        {Object.keys(incomeByCategory).map(cat => (
+        {categories.map(cat => {
 
-          <div
-            key={cat}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "10px"
-            }}
-          >
+          const value = incomeByCategory[cat];
 
-            <span>{cat}</span>
+          const percent = (value / maxValue) * 100;
 
-            <strong>
-              ${incomeByCategory[cat].toFixed(2)}
-            </strong>
+          return (
 
-          </div>
+            <div key={cat} style={{ marginBottom: "18px" }}>
 
-        ))}
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: "6px"
+              }}>
+                <span>{cat}</span>
 
-      </div>
+                <strong>
+                  ${value.toFixed(2)}
+                </strong>
+              </div>
 
-      {/* GRAFICO SIMPLE */}
+              <div style={{
+                height: "8px",
+                background: "#e5e7eb",
+                borderRadius: "10px",
+                overflow: "hidden"
+              }}>
 
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: "12px",
-          padding: "20px"
-        }}
-      >
+                <div style={{
+                  width: `${percent}%`,
+                  height: "100%",
+                  background: "linear-gradient(90deg,#22c55e,#4ade80)"
+                }} />
 
-        <h4>Gráfico ingresos</h4>
+              </div>
 
-        <div style={{ marginTop: "20px" }}>
+            </div>
 
-          {incomes.slice(0,10).map((t,i) => (
+          );
 
-            <div
-              key={i}
-              style={{
-                height: "10px",
-                width: `${Math.abs(t.amount) / 10}%`,
-                background: "#22c55e",
-                marginBottom: "6px",
-                borderRadius: "4px"
-              }}
-            />
-
-          ))}
-
-        </div>
+        })}
 
       </div>
 
     </div>
+
   );
+
 }

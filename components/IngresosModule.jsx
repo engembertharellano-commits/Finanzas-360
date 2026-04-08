@@ -55,9 +55,9 @@ export default function IngresosModule({
 
 
   const percent = (value) => {
-    if (totalIncome === 0) return 0;
-    return (value / totalIncome) * 100;
-  };
+  if (totalSueldo === 0) return 0;
+  return (value / totalSueldo) * 100;
+};
 
 
 

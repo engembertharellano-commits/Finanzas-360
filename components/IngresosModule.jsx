@@ -7,24 +7,13 @@ export default function IngresosModule({
   incomeCategories
 }) {
 
-  // Filtrar ingresos del mes seleccionado
+  // Filtrar ingresos (sin filtrar por fecha para evitar errores)
   const incomes = transactions.filter(t => {
 
-    const date = new Date(t.date);
-    const month = date.getMonth();
-    const year = date.getFullYear();
-
-    const selected = new Date(selectedMonth);
-
-    const sameMonth =
-      month === selected.getMonth() &&
-      year === selected.getFullYear();
-
-    const isIncome =
+    return (
       t.type === "income" ||
-      incomeCategories?.includes(t.category);
-
-    return sameMonth && isIncome;
+      incomeCategories?.includes(t.category)
+    );
 
   });
 
@@ -91,7 +80,7 @@ export default function IngresosModule({
         </h4>
 
         {Object.keys(incomeByCategory).length === 0 && (
-          <p>No hay ingresos este mes</p>
+          <p>No hay ingresos registrados</p>
         )}
 
         {Object.keys(incomeByCategory).map(cat => (
@@ -137,7 +126,7 @@ export default function IngresosModule({
               key={i}
               style={{
                 height: "10px",
-                width: `${t.amount / 10}%`,
+                width: `${Math.abs(t.amount) / 10}%`,
                 background: "#22c55e",
                 marginBottom: "6px",
                 borderRadius: "4px"

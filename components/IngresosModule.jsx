@@ -32,7 +32,7 @@ export default function IngresosModule({
 
       } else {
 
-        const key = tx.category || "OTROS";
+       const key = tx.category;
 
         if (!otros[key]) otros[key] = 0;
 

@@ -89,8 +89,7 @@ export default function IngresosModule({
           Distribución
         </h3>
 
-        {[...Object.entries(data.sueldo), ...Object.entries(data.otros)]
-          .map(([name,value]) => (
+      {Object.entries(sueldo).map(([name,value]) => (
 
           <div key={name} className="mb-3">
 

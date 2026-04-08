@@ -2,52 +2,54 @@ import React from "react";
 
 export default function IngresosModule({
   transactions,
-  exchangeRate,
   incomeCategories
 }) {
 
-  // Detectar ingresos
+  // detectar ingresos
   const incomes = transactions.filter(t =>
     t.type === "income" || incomeCategories?.includes(t.category)
   );
 
-  // Convertir Bs a USD
-  const toUSD = (amount) => {
-    const value = Number(amount) || 0;
-    if (!exchangeRate || exchangeRate === 0) return value;
-    return value / exchangeRate;
+  // función para obtener USD correcto
+  const getUSD = (t) => {
+
+    if (t.amountUSD) return Number(t.amountUSD);
+    if (t.usdAmount) return Number(t.usdAmount);
+    if (t.amountUsd) return Number(t.amountUsd);
+    if (t.usd) return Number(t.usd);
+
+    return 0;
+
   };
 
-  // Total ingresos
+  // total ingresos
   const totalIncome = incomes.reduce(
-    (acc, t) => acc + toUSD(t.amount),
+    (acc, t) => acc + getUSD(t),
     0
   );
 
-  // Agrupar por categoría
+  // agrupar por categoría
   const incomeByCategory = {};
 
   incomes.forEach(t => {
 
     const cat = t.category || "Otros";
+    const value = getUSD(t);
 
     if (!incomeByCategory[cat]) {
       incomeByCategory[cat] = 0;
     }
 
-    incomeByCategory[cat] += toUSD(t.amount);
+    incomeByCategory[cat] += value;
 
   });
 
   const categories = Object.keys(incomeByCategory);
-
   const maxValue = Math.max(...Object.values(incomeByCategory), 1);
 
   return (
 
     <div style={{ padding: "30px" }}>
-
-      {/* TITULO */}
 
       <h2 style={{
         fontSize: "22px",
@@ -57,28 +59,23 @@ export default function IngresosModule({
         Ingresos
       </h2>
 
-      {/* CARD TOTAL INGRESOS */}
+      {/* CARD TOTAL */}
 
       <div style={{
         background: "linear-gradient(135deg,#0f172a,#1e293b)",
         color: "white",
         borderRadius: "16px",
         padding: "30px",
-        marginBottom: "30px",
-        boxShadow: "0 10px 25px rgba(0,0,0,0.15)"
+        marginBottom: "30px"
       }}>
 
-        <div style={{
-          fontSize: "14px",
-          opacity: 0.8
-        }}>
-          Ingresos Totales
+        <div style={{ opacity: 0.8 }}>
+          Ingresos del mes
         </div>
 
         <div style={{
           fontSize: "40px",
           fontWeight: "700",
-          marginTop: "5px",
           color: "#4ade80"
         }}>
           ${totalIncome.toFixed(2)}
@@ -86,31 +83,23 @@ export default function IngresosModule({
 
       </div>
 
-      {/* INGRESOS POR CATEGORIA */}
+      {/* CATEGORIAS */}
 
       <div style={{
         background: "white",
         borderRadius: "16px",
-        padding: "25px",
-        boxShadow: "0 5px 15px rgba(0,0,0,0.05)"
+        padding: "25px"
       }}>
 
         <h3 style={{
-          marginBottom: "20px",
-          fontSize: "18px",
-          fontWeight: "600"
+          marginBottom: "20px"
         }}>
           Ingresos por categoría
         </h3>
 
-        {categories.length === 0 && (
-          <p>No hay ingresos registrados</p>
-        )}
-
         {categories.map(cat => {
 
           const value = incomeByCategory[cat];
-
           const percent = (value / maxValue) * 100;
 
           return (
@@ -119,27 +108,24 @@ export default function IngresosModule({
 
               <div style={{
                 display: "flex",
-                justifyContent: "space-between",
-                marginBottom: "6px"
+                justifyContent: "space-between"
               }}>
                 <span>{cat}</span>
-
-                <strong>
-                  ${value.toFixed(2)}
-                </strong>
+                <strong>${value.toFixed(2)}</strong>
               </div>
 
               <div style={{
                 height: "8px",
                 background: "#e5e7eb",
                 borderRadius: "10px",
-                overflow: "hidden"
+                overflow: "hidden",
+                marginTop: "5px"
               }}>
 
                 <div style={{
                   width: `${percent}%`,
                   height: "100%",
-                  background: "linear-gradient(90deg,#22c55e,#4ade80)"
+                  background: "#22c55e"
                 }} />
 
               </div>

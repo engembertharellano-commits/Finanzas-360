@@ -62,7 +62,7 @@ export default function IngresosModule({
   };
 
   const monthName =
-    new Date(selectedMonth).toLocaleString("es-ES",{month:"long"});
+  new Date(selectedMonth + "-02").toLocaleString("es-ES",{month:"long"});
 
 
   return (

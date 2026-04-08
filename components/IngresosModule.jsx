@@ -1,145 +1,108 @@
-import React from "react";
+import React, { useMemo } from "react";
+import { TrendingUp } from "lucide-react";
 
-export default function IngresosModule({
-  transactions,
-  incomeCategories
-}) {
+const IngresosModule = ({ transactions, selectedMonth, exchangeRate, incomeCategories }) => {
 
-  // detectar ingresos
-  const incomes = transactions.filter(t =>
-    t.type === "income" || incomeCategories?.includes(t.category)
-  );
+  const monthlyIncomeUSD = useMemo(() => {
 
-  // función para obtener USD correcto
-  const getUSD = (t) => {
+    const filtered = transactions.filter((tx) => {
+      if (tx.type !== "Ingreso") return false;
+      if (!tx.date) return false;
+      return tx.date.startsWith(selectedMonth);
+    });
 
-    if (t.amountUSD) return Number(t.amountUSD);
-    if (t.usdAmount) return Number(t.usdAmount);
-    if (t.amountUsd) return Number(t.amountUsd);
-    if (t.usd) return Number(t.usd);
+    return filtered.reduce((total, tx) => {
 
-    return 0;
+      let amount = Number(tx.amount) || 0;
 
-  };
+      if (tx.currency === "VES") {
+        amount = amount / exchangeRate;
+      }
 
-  // total ingresos
-  const totalIncome = incomes.reduce(
-    (acc, t) => acc + getUSD(t),
-    0
-  );
+      const commission = Number(tx.commission) || 0;
 
-  // agrupar por categoría
-  const incomeByCategory = {};
+      return total + (amount - commission);
 
-  incomes.forEach(t => {
+    }, 0);
 
-    const cat = t.category || "Otros";
-    const value = getUSD(t);
+  }, [transactions, selectedMonth, exchangeRate]);
 
-    if (!incomeByCategory[cat]) {
-      incomeByCategory[cat] = 0;
-    }
 
-    incomeByCategory[cat] += value;
 
-  });
+  const incomeByCategory = useMemo(() => {
 
-  const categories = Object.keys(incomeByCategory);
-  const maxValue = Math.max(...Object.values(incomeByCategory), 1);
+    const map = {};
+
+    transactions.forEach((tx) => {
+
+      if (tx.type !== "Ingreso") return;
+      if (!tx.date.startsWith(selectedMonth)) return;
+
+      let amount = Number(tx.amount) || 0;
+
+      if (tx.currency === "VES") {
+        amount = amount / exchangeRate;
+      }
+
+      const category = tx.category || "Otros";
+
+      if (!map[category]) {
+        map[category] = 0;
+      }
+
+      map[category] += amount;
+
+    });
+
+    return map;
+
+  }, [transactions, selectedMonth, exchangeRate]);
+
 
   return (
+    <div className="space-y-8">
 
-    <div style={{ padding: "30px" }}>
+      <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
 
-      <h2 style={{
-        fontSize: "22px",
-        fontWeight: "600",
-        marginBottom: "25px"
-      }}>
-        Ingresos
-      </h2>
-
-      {/* CARD TOTAL */}
-
-      <div style={{
-        background: "linear-gradient(135deg,#0f172a,#1e293b)",
-        color: "white",
-        borderRadius: "16px",
-        padding: "30px",
-        marginBottom: "30px"
-      }}>
-
-        <div style={{ opacity: 0.8 }}>
-          Ingresos del mes
+        <div className="flex items-center gap-3 mb-4">
+          <TrendingUp className="text-emerald-500" size={26} />
+          <h2 className="text-xl font-bold">Ingresos del Mes</h2>
         </div>
 
-        <div style={{
-          fontSize: "40px",
-          fontWeight: "700",
-          color: "#4ade80"
-        }}>
-          ${totalIncome.toFixed(2)}
-        </div>
+        <p className="text-4xl font-black text-emerald-600">
+          ${monthlyIncomeUSD.toFixed(2)}
+        </p>
 
       </div>
 
-      {/* CATEGORIAS */}
 
-      <div style={{
-        background: "white",
-        borderRadius: "16px",
-        padding: "25px"
-      }}>
 
-        <h3 style={{
-          marginBottom: "20px"
-        }}>
-          Ingresos por categoría
-        </h3>
+      <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
 
-        {categories.map(cat => {
+        <h3 className="font-bold mb-6">Ingresos por Categoría</h3>
 
-          const value = incomeByCategory[cat];
-          const percent = (value / maxValue) * 100;
+        <div className="space-y-3">
 
-          return (
+          {Object.entries(incomeByCategory).map(([cat, value]) => (
 
-            <div key={cat} style={{ marginBottom: "18px" }}>
+            <div key={cat} className="flex justify-between text-sm">
 
-              <div style={{
-                display: "flex",
-                justifyContent: "space-between"
-              }}>
-                <span>{cat}</span>
-                <strong>${value.toFixed(2)}</strong>
-              </div>
+              <span className="text-slate-600">{cat}</span>
 
-              <div style={{
-                height: "8px",
-                background: "#e5e7eb",
-                borderRadius: "10px",
-                overflow: "hidden",
-                marginTop: "5px"
-              }}>
-
-                <div style={{
-                  width: `${percent}%`,
-                  height: "100%",
-                  background: "#22c55e"
-                }} />
-
-              </div>
+              <span className="font-bold text-emerald-600">
+                ${value.toFixed(2)}
+              </span>
 
             </div>
 
-          );
+          ))}
 
-        })}
+        </div>
 
       </div>
 
     </div>
-
   );
+};
 
-}
+export default IngresosModule;

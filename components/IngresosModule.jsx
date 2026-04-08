@@ -61,14 +61,21 @@ export default function IngresosModule({
     return (value / totalSueldo) * 100;
   };
 
-  const monthName =
-  new Date(selectedMonth + "-02").toLocaleString("es-ES",{month:"long"});
+  const colors = [
+    "bg-blue-500",
+    "bg-green-500",
+    "bg-orange-500",
+    "bg-purple-500",
+    "bg-pink-500",
+    "bg-indigo-500"
+  ];
 
+  const monthName =
+    new Date(selectedMonth).toLocaleString("es-ES",{month:"long"});
 
   return (
 
     <div className="space-y-6">
-
 
       {/* TOTAL INGRESOS */}
 
@@ -84,8 +91,6 @@ export default function IngresosModule({
 
       </div>
 
-
-
       {/* SALARIO DEL MES */}
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border">
@@ -98,8 +103,7 @@ export default function IngresosModule({
           ${totalSueldo.toFixed(2)}
         </p>
 
-
-        {Object.entries(data.sueldo).map(([name,value]) => (
+        {Object.entries(data.sueldo).map(([name,value], index) => (
 
           <div key={name} className="mb-3">
 
@@ -124,7 +128,7 @@ export default function IngresosModule({
             <div className="bg-gray-200 h-3 rounded-full overflow-hidden">
 
               <div
-                className="bg-green-500 h-3"
+                className={`${colors[index % colors.length]} h-3`}
                 style={{ width: `${percent(value)}%` }}
               />
 
@@ -135,8 +139,6 @@ export default function IngresosModule({
         ))}
 
       </div>
-
-
 
       {/* OTROS INGRESOS */}
 
@@ -164,7 +166,6 @@ export default function IngresosModule({
         ))}
 
       </div>
-
 
     </div>
 

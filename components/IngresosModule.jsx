@@ -32,7 +32,7 @@ export default function IngresosModule({
 
       } else {
 
-       const key = tx.category;
+        const key = tx.category;
 
         if (!otros[key]) otros[key] = 0;
 
@@ -47,25 +47,27 @@ export default function IngresosModule({
   }, [transactions, selectedMonth, exchangeRate]);
 
 
-
   const totalIncome =
     [...Object.values(data.sueldo), ...Object.values(data.otros)]
       .reduce((a,b)=>a+b,0);
 
+  const totalSueldo =
+    Object.values(data.sueldo)
+      .reduce((a,b)=>a+b,0);
 
 
   const percent = (value) => {
-  if (totalSueldo === 0) return 0;
-  return (value / totalSueldo) * 100;
-};
-
+    if (totalSueldo === 0) return 0;
+    return (value / totalSueldo) * 100;
+  };
 
 
   return (
 
     <div className="space-y-6">
 
-      {/* TOTAL */}
+
+      {/* TOTAL INGRESOS */}
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border">
 
@@ -81,15 +83,15 @@ export default function IngresosModule({
 
 
 
-      {/* GRAFICA */}
+      {/* DISTRIBUCION SUELDO */}
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border">
 
         <h3 className="font-semibold mb-4">
-          Distribución
+          Distribución del sueldo
         </h3>
 
-    {Object.entries(data.sueldo).map(([name,value]) => (
+        {Object.entries(data.sueldo).map(([name,value]) => (
 
           <div key={name} className="mb-3">
 
@@ -115,12 +117,12 @@ export default function IngresosModule({
 
 
 
-      {/* SUELDO */}
+      {/* DESGLOSE SUELDO */}
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border">
 
         <h3 className="font-semibold mb-4">
-          Sueldo
+          Desglose sueldo
         </h3>
 
         {Object.entries(data.sueldo).map(([name,value]) => (

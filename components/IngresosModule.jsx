@@ -122,7 +122,7 @@ export default function IngresosModule({
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border">
 
-        <h3 className="font-semibold mb-2">
+        <h3 className="text-xl font-bold mb-2">
           Salario del mes de {monthName}
         </h3>
 
@@ -168,13 +168,13 @@ export default function IngresosModule({
                 className="flex justify-between items-center mb-4 border-b pb-2"
               >
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
 
                   <div
                     className={`w-3 h-3 rounded ${colors[index % colors.length]}`}
                   />
 
-                  <span className="text-sm">
+                  <span className="text-base font-semibold">
                     {name}
                   </span>
 
@@ -182,11 +182,11 @@ export default function IngresosModule({
 
                 <div className="text-right">
 
-                  <div className="text-sm text-gray-600">
+                  <div className="text-base font-semibold text-gray-700">
                     ${value.toFixed(2)}
                   </div>
 
-                  <div className="text-xs font-semibold">
+                  <div className="text-sm font-bold text-gray-600">
                     {percent(value).toFixed(0)}%
                   </div>
 

@@ -6,33 +6,17 @@ export default function IngresosModule({
   exchangeRate
 }) {
 
-  const incomes = useMemo(() => {
+  const incomeBreakdown = useMemo(() => {
 
-    return transactions.filter(tx => {
+    const map = {};
 
-      if (tx.type !== "Ingreso") return false;
+    transactions.forEach(tx => {
 
-      if (!tx.date.startsWith(selectedMonth)) return false;
+      if (tx.type !== "Ingreso") return;
 
-      return true;
+      if (!tx.date.startsWith(selectedMonth)) return;
 
-    });
-
-  }, [transactions, selectedMonth]);
-
-
-
-  const breakdown = useMemo(() => {
-
-    const data = {
-      sueldo: 0,
-      cesta: 0,
-      vehiculo: 0,
-      bono: 0,
-      otros: 0
-    };
-
-    incomes.forEach(tx => {
+      if (tx.category !== "Sueldo") return;
 
       let amount = Number(tx.amount) || 0;
 
@@ -40,39 +24,23 @@ export default function IngresosModule({
         amount = amount / exchangeRate;
       }
 
-      const desc = (tx.description || "").toLowerCase();
+      const key = tx.description || "OTROS";
 
-      if (desc.includes("cesta")) {
-        data.cesta += amount;
+      if (!map[key]) {
+        map[key] = 0;
       }
-      else if (desc.includes("vehiculo") || desc.includes("vehículo")) {
-        data.vehiculo += amount;
-      }
-      else if (desc.includes("bono")) {
-        data.bono += amount;
-      }
-      else if (desc.includes("sueldo")) {
-        data.sueldo += amount;
-      }
-      else {
-        data.otros += amount;
-      }
+
+      map[key] += amount;
 
     });
 
-    return data;
+    return map;
 
-  }, [incomes, exchangeRate]);
+  }, [transactions, selectedMonth, exchangeRate]);
 
 
-
-  const totalIncome =
-    breakdown.sueldo +
-    breakdown.cesta +
-    breakdown.vehiculo +
-    breakdown.bono +
-    breakdown.otros;
-
+  const totalIncome = Object.values(incomeBreakdown)
+    .reduce((a,b)=>a+b,0);
 
 
   const percent = (value) => {
@@ -81,10 +49,10 @@ export default function IngresosModule({
   };
 
 
-
   return (
 
     <div className="space-y-6">
+
 
       {/* TOTAL */}
 
@@ -110,43 +78,33 @@ export default function IngresosModule({
           Distribución
         </h3>
 
-        <div className="space-y-3">
+        {Object.entries(incomeBreakdown).map(([name,value]) => (
 
-          <div className="bg-gray-200 h-3 rounded-full overflow-hidden">
-            <div
-              className="bg-green-500 h-3"
-              style={{ width: `${percent(breakdown.sueldo)}%` }}
-            />
+          <div key={name} className="mb-3">
+
+            <div className="flex justify-between text-sm mb-1">
+              <span>{name}</span>
+              <span>{percent(value).toFixed(0)}%</span>
+            </div>
+
+            <div className="bg-gray-200 h-3 rounded-full overflow-hidden">
+
+              <div
+                className="bg-green-500 h-3"
+                style={{ width: `${percent(value)}%` }}
+              />
+
+            </div>
+
           </div>
 
-          <div className="bg-gray-200 h-3 rounded-full overflow-hidden">
-            <div
-              className="bg-blue-500 h-3"
-              style={{ width: `${percent(breakdown.cesta)}%` }}
-            />
-          </div>
-
-          <div className="bg-gray-200 h-3 rounded-full overflow-hidden">
-            <div
-              className="bg-yellow-500 h-3"
-              style={{ width: `${percent(breakdown.vehiculo)}%` }}
-            />
-          </div>
-
-          <div className="bg-gray-200 h-3 rounded-full overflow-hidden">
-            <div
-              className="bg-purple-500 h-3"
-              style={{ width: `${percent(breakdown.bono)}%` }}
-            />
-          </div>
-
-        </div>
+        ))}
 
       </div>
 
 
 
-      {/* DETALLE */}
+      {/* DESGLOSE */}
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border">
 
@@ -154,36 +112,25 @@ export default function IngresosModule({
           Desglose
         </h3>
 
-        <div className="space-y-2">
+        {Object.entries(incomeBreakdown).map(([name,value]) => (
 
-          <div className="flex justify-between">
-            <span>💼 Sueldo Base</span>
-            <span>${breakdown.sueldo.toFixed(2)}</span>
+          <div
+            key={name}
+            className="flex justify-between mb-2"
+          >
+
+            <span>{name}</span>
+
+            <span>
+              ${value.toFixed(2)}
+            </span>
+
           </div>
 
-          <div className="flex justify-between">
-            <span>🥗 Cesta Ticket</span>
-            <span>${breakdown.cesta.toFixed(2)}</span>
-          </div>
-
-          <div className="flex justify-between">
-            <span>🚗 Ayuda Vehículo</span>
-            <span>${breakdown.vehiculo.toFixed(2)}</span>
-          </div>
-
-          <div className="flex justify-between">
-            <span>🎁 Bonos</span>
-            <span>${breakdown.bono.toFixed(2)}</span>
-          </div>
-
-          <div className="flex justify-between">
-            <span>📦 Otros</span>
-            <span>${breakdown.otros.toFixed(2)}</span>
-          </div>
-
-        </div>
+        ))}
 
       </div>
+
 
     </div>
 

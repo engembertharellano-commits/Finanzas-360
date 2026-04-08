@@ -61,6 +61,9 @@ export default function IngresosModule({
     return (value / totalSueldo) * 100;
   };
 
+  const monthName =
+    new Date(selectedMonth).toLocaleString("es-ES",{month:"long"});
+
 
   return (
 
@@ -83,21 +86,39 @@ export default function IngresosModule({
 
 
 
-      {/* DISTRIBUCION SUELDO */}
+      {/* SALARIO DEL MES */}
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border">
 
-        <h3 className="font-semibold mb-4">
-          Distribución del sueldo
+        <h3 className="font-semibold">
+          Salario del mes de {monthName}
         </h3>
+
+        <p className="text-2xl font-bold text-green-600 mb-4">
+          ${totalSueldo.toFixed(2)}
+        </p>
+
 
         {Object.entries(data.sueldo).map(([name,value]) => (
 
           <div key={name} className="mb-3">
 
             <div className="flex justify-between text-sm mb-1">
+
               <span>{name}</span>
-              <span>{percent(value).toFixed(0)}%</span>
+
+              <span className="flex gap-3">
+
+                <span className="text-gray-600">
+                  ${value.toFixed(2)}
+                </span>
+
+                <span className="font-semibold">
+                  {percent(value).toFixed(0)}%
+                </span>
+
+              </span>
+
             </div>
 
             <div className="bg-gray-200 h-3 rounded-full overflow-hidden">
@@ -108,35 +129,6 @@ export default function IngresosModule({
               />
 
             </div>
-
-          </div>
-
-        ))}
-
-      </div>
-
-
-
-      {/* DESGLOSE SUELDO */}
-
-      <div className="bg-white rounded-2xl p-6 shadow-sm border">
-
-        <h3 className="font-semibold mb-4">
-          Desglose sueldo
-        </h3>
-
-        {Object.entries(data.sueldo).map(([name,value]) => (
-
-          <div
-            key={name}
-            className="flex justify-between mb-2"
-          >
-
-            <span>{name}</span>
-
-            <span>
-              ${value.toFixed(2)}
-            </span>
 
           </div>
 

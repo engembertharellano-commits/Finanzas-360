@@ -1,17 +1,38 @@
 import React, { useMemo } from "react";
-import { TrendingUp } from "lucide-react";
 
-const IngresosModule = ({ transactions, selectedMonth, exchangeRate, incomeCategories }) => {
+export default function IngresosModule({
+  transactions,
+  selectedMonth,
+  exchangeRate
+}) {
 
-  const monthlyIncomeUSD = useMemo(() => {
+  const incomes = useMemo(() => {
 
-    const filtered = transactions.filter((tx) => {
+    return transactions.filter(tx => {
+
       if (tx.type !== "Ingreso") return false;
-      if (!tx.date) return false;
-      return tx.date.startsWith(selectedMonth);
+
+      if (!tx.date.startsWith(selectedMonth)) return false;
+
+      return true;
+
     });
 
-    return filtered.reduce((total, tx) => {
+  }, [transactions, selectedMonth]);
+
+
+
+  const breakdown = useMemo(() => {
+
+    const data = {
+      sueldo: 0,
+      cesta: 0,
+      vehiculo: 0,
+      bono: 0,
+      otros: 0
+    };
+
+    incomes.forEach(tx => {
 
       let amount = Number(tx.amount) || 0;
 
@@ -19,90 +40,153 @@ const IngresosModule = ({ transactions, selectedMonth, exchangeRate, incomeCateg
         amount = amount / exchangeRate;
       }
 
-      const commission = Number(tx.commission) || 0;
+      const desc = (tx.description || "").toLowerCase();
 
-      return total + (amount - commission);
-
-    }, 0);
-
-  }, [transactions, selectedMonth, exchangeRate]);
-
-
-
-  const incomeByCategory = useMemo(() => {
-
-    const map = {};
-
-    transactions.forEach((tx) => {
-
-      if (tx.type !== "Ingreso") return;
-      if (!tx.date.startsWith(selectedMonth)) return;
-
-      let amount = Number(tx.amount) || 0;
-
-      if (tx.currency === "VES") {
-        amount = amount / exchangeRate;
+      if (desc.includes("cesta")) {
+        data.cesta += amount;
       }
-
-      const category = tx.category || "Otros";
-
-      if (!map[category]) {
-        map[category] = 0;
+      else if (desc.includes("vehiculo") || desc.includes("vehículo")) {
+        data.vehiculo += amount;
       }
-
-      map[category] += amount;
+      else if (desc.includes("bono")) {
+        data.bono += amount;
+      }
+      else if (desc.includes("sueldo")) {
+        data.sueldo += amount;
+      }
+      else {
+        data.otros += amount;
+      }
 
     });
 
-    return map;
+    return data;
 
-  }, [transactions, selectedMonth, exchangeRate]);
+  }, [incomes, exchangeRate]);
+
+
+
+  const totalIncome =
+    breakdown.sueldo +
+    breakdown.cesta +
+    breakdown.vehiculo +
+    breakdown.bono +
+    breakdown.otros;
+
+
+
+  const percent = (value) => {
+    if (totalIncome === 0) return 0;
+    return (value / totalIncome) * 100;
+  };
+
 
 
   return (
-    <div className="space-y-8">
 
-      <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+    <div className="space-y-6">
 
-        <div className="flex items-center gap-3 mb-4">
-          <TrendingUp className="text-emerald-500" size={26} />
-          <h2 className="text-xl font-bold">Ingresos del Mes</h2>
-        </div>
+      {/* TOTAL */}
 
-        <p className="text-4xl font-black text-emerald-600">
-          ${monthlyIncomeUSD.toFixed(2)}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border">
+
+        <p className="text-gray-500 text-sm">
+          Total ingresos del mes
         </p>
+
+        <h1 className="text-3xl font-bold text-green-600 mt-2">
+          ${totalIncome.toFixed(2)}
+        </h1>
 
       </div>
 
 
 
-      <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+      {/* GRAFICA */}
 
-        <h3 className="font-bold mb-6">Ingresos por Categoría</h3>
+      <div className="bg-white rounded-2xl p-6 shadow-sm border">
+
+        <h3 className="font-semibold mb-4">
+          Distribución
+        </h3>
 
         <div className="space-y-3">
 
-          {Object.entries(incomeByCategory).map(([cat, value]) => (
+          <div className="bg-gray-200 h-3 rounded-full overflow-hidden">
+            <div
+              className="bg-green-500 h-3"
+              style={{ width: `${percent(breakdown.sueldo)}%` }}
+            />
+          </div>
 
-            <div key={cat} className="flex justify-between text-sm">
+          <div className="bg-gray-200 h-3 rounded-full overflow-hidden">
+            <div
+              className="bg-blue-500 h-3"
+              style={{ width: `${percent(breakdown.cesta)}%` }}
+            />
+          </div>
 
-              <span className="text-slate-600">{cat}</span>
+          <div className="bg-gray-200 h-3 rounded-full overflow-hidden">
+            <div
+              className="bg-yellow-500 h-3"
+              style={{ width: `${percent(breakdown.vehiculo)}%` }}
+            />
+          </div>
 
-              <span className="font-bold text-emerald-600">
-                ${value.toFixed(2)}
-              </span>
+          <div className="bg-gray-200 h-3 rounded-full overflow-hidden">
+            <div
+              className="bg-purple-500 h-3"
+              style={{ width: `${percent(breakdown.bono)}%` }}
+            />
+          </div>
 
-            </div>
+        </div>
 
-          ))}
+      </div>
+
+
+
+      {/* DETALLE */}
+
+      <div className="bg-white rounded-2xl p-6 shadow-sm border">
+
+        <h3 className="font-semibold mb-4">
+          Desglose
+        </h3>
+
+        <div className="space-y-2">
+
+          <div className="flex justify-between">
+            <span>💼 Sueldo Base</span>
+            <span>${breakdown.sueldo.toFixed(2)}</span>
+          </div>
+
+          <div className="flex justify-between">
+            <span>🥗 Cesta Ticket</span>
+            <span>${breakdown.cesta.toFixed(2)}</span>
+          </div>
+
+          <div className="flex justify-between">
+            <span>🚗 Ayuda Vehículo</span>
+            <span>${breakdown.vehiculo.toFixed(2)}</span>
+          </div>
+
+          <div className="flex justify-between">
+            <span>🎁 Bonos</span>
+            <span>${breakdown.bono.toFixed(2)}</span>
+          </div>
+
+          <div className="flex justify-between">
+            <span>📦 Otros</span>
+            <span>${breakdown.otros.toFixed(2)}</span>
+          </div>
 
         </div>
 
       </div>
 
     </div>
-  );
-};
 
-export default IngresosModule;
+  );
+
+}

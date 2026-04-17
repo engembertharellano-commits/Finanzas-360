@@ -161,11 +161,11 @@ export const TransactionsLog: React.FC<Props> = ({
                       </span>
                     </td>
 
-          <td className="px-10 py-6 text-right">
+         <td className="px-10 py-6 text-right">
   <p className={`font-bold ${
-    t.type === 'ingreso'
+    String(t.type).toLowerCase().includes('ing')
       ? 'text-blue-500'
-      : t.type === 'gasto'
+      : String(t.type).toLowerCase().includes('gas')
       ? 'text-red-500'
       : 'text-black'
   }`}>

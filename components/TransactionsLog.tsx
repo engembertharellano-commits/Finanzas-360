@@ -17,8 +17,12 @@ interface Props {
 export const TransactionsLog: React.FC<Props> = ({ 
   transactions, accounts, onAdd, onDelete, selectedMonth, exchangeRate, expenseCategories, incomeCategories 
 }) => {
+
   const [filter, setFilter] = useState<string>('');
   const [showAdd, setShowAdd] = useState(false);
+
+  // ✅ NUEVO ESTADO
+  const [selectedAccount, setSelectedAccount] = useState<string>("all");
 
   const monthName = useMemo(() => {
     const [year, month] = selectedMonth.split('-').map(Number);
@@ -27,15 +31,32 @@ export const TransactionsLog: React.FC<Props> = ({
 
   const filteredTransactions = transactions
     .filter(t => t.date.startsWith(selectedMonth))
-    .filter(t => t.description.toLowerCase().includes(filter.toLowerCase()) || t.category.toLowerCase().includes(filter.toLowerCase()));
+
+    // 🔍 filtro texto
+    .filter(t => 
+      t.description.toLowerCase().includes(filter.toLowerCase()) || 
+      t.category.toLowerCase().includes(filter.toLowerCase())
+    )
+
+    // ✅ NUEVO FILTRO POR ORIGEN
+    .filter(t => {
+      if (selectedAccount === "all") return true;
+
+      return (
+        t.accountId === selectedAccount ||
+        t.toAccountId === selectedAccount
+      );
+    });
 
   return (
     <div className="space-y-8 pb-10">
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-5 px-2">
         <div>
           <h2 className="text-2xl font-black text-slate-900">Bitácora de Movimientos</h2>
           <p className="text-slate-500 text-sm font-medium">Control total de entradas y salidas del periodo</p>
         </div>
+
         <button 
           onClick={() => setShowAdd(!showAdd)}
           className={`w-full sm:w-auto px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl active:scale-95 ${
@@ -52,7 +73,6 @@ export const TransactionsLog: React.FC<Props> = ({
             onAdd={(t) => {
               let enhanced = { ...t };
 
-              // 🔥 NUEVA LÓGICA: guardar tasa histórica
               if (t.currency === 'VES' && exchangeRate > 0) {
                 enhanced = {
                   ...t,
@@ -73,16 +93,37 @@ export const TransactionsLog: React.FC<Props> = ({
       )}
 
       <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-        <div className="p-8 border-b border-slate-50">
-          <div className="relative group">
-            <Search size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
+
+        {/* 🔥 FILTROS */}
+        <div className="p-8 border-b border-slate-50 flex flex-col sm:flex-row gap-4">
+
+          {/* BUSCADOR */}
+          <div className="relative group flex-1">
+            <Search size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500" />
             <input 
-              className="w-full pl-16 pr-6 py-4 rounded-2xl bg-slate-50 border-2 border-transparent outline-none focus:bg-white focus:border-blue-100 focus:ring-4 focus:ring-blue-500/5 text-sm font-bold transition-all"
+              className="w-full pl-16 pr-6 py-4 rounded-2xl bg-slate-50 border-2 border-transparent outline-none focus:bg-white focus:border-blue-100 text-sm font-bold"
               placeholder="Filtra por nombre, categoría o etiqueta..."
               value={filter}
               onChange={e => setFilter(e.target.value)}
             />
           </div>
+
+          {/* ✅ DROPDOWN ORIGEN */}
+          <select
+            value={selectedAccount}
+            onChange={(e) => setSelectedAccount(e.target.value)}
+            className="px-4 py-4 rounded-2xl bg-slate-50 border-2 border-transparent text-sm font-bold"
+          >
+            <option value="all">Todas las cuentas</option>
+
+            {accounts.map(acc => (
+              <option key={acc.id} value={acc.id}>
+                {acc.name}
+              </option>
+            ))}
+
+          </select>
+
         </div>
 
         <div className="overflow-x-auto custom-scrollbar">
@@ -96,91 +137,49 @@ export const TransactionsLog: React.FC<Props> = ({
                 <th className="px-10 py-6 text-center">Acción</th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-slate-50">
               {filteredTransactions.map(t => {
                 const sourceAcc = accounts.find(a => a.id === t.accountId);
                 
                 return (
                   <tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
+
                     <td className="px-10 py-6">
                       <p className="text-sm font-black text-slate-900">
                         {new Date(t.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
                       </p>
                     </td>
-                    <td className="px-10 py-6">
-                      <div className="flex items-center gap-5">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${
-                          t.isThirdParty ? 'bg-emerald-50 text-emerald-600' :
-                          t.isWorkRelated ? 'bg-indigo-50 text-indigo-600' :
-                          t.type === 'Ingreso' ? 'bg-blue-50 text-blue-600' : 
-                          'bg-slate-100 text-slate-500'
-                        }`}>
-                          {t.isThirdParty ? <Users size={20} /> : 
-                           t.isWorkRelated ? <Briefcase size={20} /> :
-                           t.type === 'Ingreso' ? <ArrowUpCircle size={20} /> : 
-                           t.type === 'Gasto' ? <ArrowDownCircle size={20} /> : 
-                           <RefreshCcw size={20} />}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-black text-slate-900 leading-none mb-2">{t.description}</p>
-                          <div className="flex flex-wrap items-center gap-3">
-                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t.category}</span>
-                             {t.isThirdParty && (
-                               <span className="text-[8px] font-black bg-emerald-500 text-white px-2.5 py-1 rounded-lg uppercase tracking-widest shadow-sm">De: {t.thirdPartyOwner}</span>
-                             )}
-                             {t.isWorkRelated && (
-                               <span className="text-[8px] font-black bg-indigo-500 text-white px-2.5 py-1 rounded-lg uppercase tracking-widest shadow-sm">Corporativo</span>
-                             )}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-10 py-6">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-black text-slate-700">{sourceAcc?.name || '---'}</span>
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{sourceAcc?.type}</span>
-                      </div>
-                    </td>
-                    <td className="px-10 py-6 text-right">
-                        <p className={`text-base font-black ${
-                          t.isThirdParty ? 'text-emerald-600' :
-                          t.isWorkRelated ? 'text-indigo-600' :
-                          t.type === 'Ingreso' ? 'text-blue-600' : 
-                          'text-slate-900'
-                        }`}>
-                          {t.type === 'Gasto' ? '-' : (t.type === 'Ingreso' ? '+' : '')}
-                          {t.currency === 'USD' ? '$' : 'Bs '}{t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                        </p>
 
-                        {/* 🔥 NUEVO: mostrar USD histórico */}
-                        {t.currency === 'VES' && t.usdEquivalentAtCreation && (
-                          <p className="text-xs text-slate-400 font-bold mt-1">
-                            ≈ ${t.usdEquivalentAtCreation.toFixed(2)} (histórico)
-                          </p>
-                        )}
+                    <td className="px-10 py-6">
+                      <p className="text-sm font-black text-slate-900">{t.description}</p>
                     </td>
+
+                    <td className="px-10 py-6">
+                      <span className="text-xs font-black text-slate-700">
+                        {sourceAcc?.name || '---'}
+                      </span>
+                    </td>
+
+                    <td className="px-10 py-6 text-right">
+                      <p className="font-bold">
+                        ${t.amount.toFixed(2)}
+                      </p>
+                    </td>
+
                     <td className="px-10 py-6 text-center">
-                      <button 
-                        onClick={() => onDelete(t.id)} 
-                        className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all active:scale-90"
-                      >
-                        <Trash2 size={20} />
+                      <button onClick={() => onDelete(t.id)}>
+                        <Trash2 size={18} />
                       </button>
                     </td>
+
                   </tr>
                 );
               })}
             </tbody>
           </table>
-          {filteredTransactions.length === 0 && (
-            <div className="py-32 text-center bg-slate-50/20">
-              <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-5 text-slate-200">
-                <Search size={32} />
-              </div>
-              <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Sin resultados para {monthName}</p>
-            </div>
-          )}
         </div>
+
       </div>
     </div>
   );

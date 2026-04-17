@@ -161,17 +161,17 @@ export const TransactionsLog: React.FC<Props> = ({
                       </span>
                     </td>
 
-                    <td className="px-10 py-6 text-right">
-                      <p className={`font-bold ${
-  t.type === 'income'
-    ? 'text-blue-500'
-    : t.type === 'expense'
-    ? 'text-red-500'
-    : 'text-black'
-}`}>
-  ${t.amount.toFixed(2)}
-</p>
-                    </td>
+          <td className="px-10 py-6 text-right">
+  <p className={`font-bold ${
+    t.type === 'ingreso'
+      ? 'text-blue-500'
+      : t.type === 'gasto'
+      ? 'text-red-500'
+      : 'text-black'
+  }`}>
+    ${t.amount.toFixed(2)}
+  </p>
+</td>
 
                     <td className="px-10 py-6 text-center">
                       <button onClick={() => onDelete(t.id)}>

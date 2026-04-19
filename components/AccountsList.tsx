@@ -3,6 +3,7 @@ import { BankAccount, AccountType, Currency } from '../types';
 import {
   Plus,
   Trash2,
+  Edit2,
   CreditCard,
   Landmark,
   Wallet as WalletIcon,
@@ -15,6 +16,7 @@ import {
 interface Props {
   accounts: BankAccount[];
   onAdd: (acc: BankAccount) => void;
+  onUpdate: (acc: BankAccount) => void;
   onDelete: (id: string) => void;
 }
 
@@ -88,8 +90,9 @@ const getGroupAccent = (type: AccountType) => {
   }
 };
 
-export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => {
+export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDelete }) => {
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [newAcc, setNewAcc] = useState({
     name: '',
     type: 'Ahorros' as AccountType,
@@ -113,7 +116,7 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
 
     const accountData: BankAccount = {
       ...newAcc,
-      id: crypto.randomUUID(),
+      id: editingId || crypto.randomUUID(),
       balance: isCredit ? -Math.abs(parsedBalance) : parsedBalance,
       ...(isCredit
         ? {
@@ -128,8 +131,33 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
           })
     };
 
-    onAdd(accountData);
+    if (editingId) {
+      onUpdate(accountData);
+    } else {
+      onAdd(accountData);
+    }
+
+    handleCancel();
+  };
+
+  const handleEdit = (acc: BankAccount) => {
+    setEditingId(acc.id);
+    setNewAcc({
+      name: acc.name,
+      type: acc.type,
+      balance: Math.abs(acc.balance),
+      currency: acc.currency,
+      color: acc.color || '#3b82f6',
+      creditLimit: acc.creditLimit || 0,
+      closingDay: acc.closingDay || 1,
+      dueDay: acc.dueDay || 1
+    });
+    setShowForm(true);
+  };
+
+  const handleCancel = () => {
     setShowForm(false);
+    setEditingId(null);
     setNewAcc({
       name: '',
       type: 'Ahorros',
@@ -184,7 +212,7 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
         </div>
 
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { if(showForm && editingId) handleCancel(); else setShowForm(!showForm); }}
           className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
         >
           <Plus size={20} /> Nueva Cuenta
@@ -331,7 +359,7 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
           <div className="flex justify-end gap-3">
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={handleCancel}
               className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors"
             >
               Cancelar
@@ -340,7 +368,7 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
               type="submit"
               className="bg-slate-900 text-white px-10 py-3 rounded-xl font-bold hover:bg-slate-800 transition-all shadow-xl"
             >
-              Crear Cuenta
+              {editingId ? 'Actualizar Cuenta' : 'Crear Cuenta'}
             </button>
           </div>
         </form>
@@ -556,7 +584,14 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onDelete }) => 
                           </div>
                         )}
 
-                        <div className="xl:w-auto flex items-center xl:self-start">
+                        <div className="xl:w-auto flex items-center gap-1 xl:self-start">
+                          <button
+                            onClick={() => handleEdit(acc)}
+                            className="p-3 text-slate-300 hover:text-blue-500 transition-all rounded-2xl hover:bg-blue-50"
+                            title="Editar cuenta"
+                          >
+                            <Edit2 size={18} />
+                          </button>
                           <button
                             onClick={() => onDelete(acc.id)}
                             className="p-3 text-slate-300 hover:text-rose-500 transition-all rounded-2xl hover:bg-rose-50"

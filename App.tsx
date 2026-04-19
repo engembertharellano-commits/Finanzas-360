@@ -14,7 +14,7 @@ import {
   Briefcase,
   Users,
   UserX,
-  Target // Importado para el nuevo botón
+  Target
 } from 'lucide-react';
 
 import {
@@ -63,7 +63,7 @@ type PersistedFinanceData = {
   budgets: Budget[];
   expenseCategories: string[];
   incomeCategories: string[];
-  financialPlans?: any[]; // Modificado a array para múltiples planes
+  financialPlans?: any[];
 };
 
 type CloudStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -75,7 +75,7 @@ const EMPTY_DATA: PersistedFinanceData = {
   budgets: [],
   expenseCategories: DEFAULT_EXPENSE_CATEGORIES,
   incomeCategories: DEFAULT_INCOME_CATEGORIES,
-  financialPlans: [] // Inicializado como lista vacía
+  financialPlans: []
 };
 
 const USER_REGISTRY_KEYS = ['f360_users', 'f360_users_list', 'finanza360_users', 'users'];
@@ -102,7 +102,7 @@ const normalizeData = (input: unknown): PersistedFinanceData => {
     incomeCategories: Array.isArray(data?.incomeCategories)
       ? data.incomeCategories
       : DEFAULT_INCOME_CATEGORIES,
-    financialPlans: Array.isArray(data?.financialPlans) ? data.financialPlans : [] // Carga de lista
+    financialPlans: Array.isArray(data?.financialPlans) ? data.financialPlans : []
   };
 };
 
@@ -163,15 +163,6 @@ const removeUserFromRegistries = (user: User) => {
       localStorage.removeItem(key);
     }
   });
-};
-
-const formatCurrency = (value: number, currency: 'USD' | 'VES') => {
-  const safeValue = Number.isFinite(value) ? value : 0;
-  return new Intl.NumberFormat('es-VE', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 2
-  }).format(safeValue);
 };
 
 const getInvestmentRawValue = (inv: Investment): number => {
@@ -266,7 +257,6 @@ const App: React.FC = () => {
   const [expenseCategories, setExpenseCategories] = useState<string[]>(DEFAULT_EXPENSE_CATEGORIES);
   const [incomeCategories, setIncomeCategories] = useState<string[]>(DEFAULT_INCOME_CATEGORIES);
   
-  // Estado para múltiples planes financieros
   const [financialPlans, setFinancialPlans] = useState<any[]>([]);
 
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
@@ -298,7 +288,7 @@ const App: React.FC = () => {
     setBudgets(clean.budgets);
     setExpenseCategories(clean.expenseCategories);
     setIncomeCategories(clean.incomeCategories);
-    setFinancialPlans(clean.financialPlans || []); // Carga la lista
+    setFinancialPlans(clean.financialPlans || []);
   }, []);
 
   const fetchRate = useCallback(async () => {
@@ -474,7 +464,7 @@ const App: React.FC = () => {
       budgets,
       expenseCategories,
       incomeCategories,
-      financialPlans // Persistencia de la lista
+      financialPlans
     };
 
     const serialized = JSON.stringify(data);
@@ -568,17 +558,12 @@ const App: React.FC = () => {
     []
   );
 
-  const totalInvestmentUSD = useMemo(() => {
-    return investments.reduce((acc, inv) => acc + getInvestmentValueUSD(inv, exchangeRate), 0);
-  }, [investments, exchangeRate]);
-
-  const totalInvestmentVES = useMemo(() => {
-    if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) return 0;
-    return totalInvestmentUSD * exchangeRate;
-  }, [totalInvestmentUSD, exchangeRate]);
-
   const handleAddAccount = (acc: BankAccount) => {
     setAccounts((prev) => [...prev, acc]);
+  };
+
+  const handleUpdateAccount = (updated: BankAccount) => {
+    setAccounts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
   };
 
   const handleDeleteAccount = (id: string) => {
@@ -661,7 +646,6 @@ const App: React.FC = () => {
     );
   };
 
-  // Funciones para la Gestión de múltiples Planes
   const handleSavePlan = (planToSave: any) => {
     setFinancialPlans(prev => {
       const exists = prev.find(p => p.id === planToSave.id);
@@ -723,7 +707,6 @@ const App: React.FC = () => {
         onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
       />
 
-      {/* Header móvil */}
       <div className="md:hidden bg-white border-b px-6 py-5 flex items-center justify-between sticky top-0 z-[60] shadow-sm">
         <div className="flex items-center space-x-3">
           <div className="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg">
@@ -736,7 +719,6 @@ const App: React.FC = () => {
         </button>
       </div>
 
-      {/* Sidebar */}
       <aside
         className={`
         fixed inset-0 z-50 transform transition-transform duration-300 ease-in-out
@@ -752,7 +734,6 @@ const App: React.FC = () => {
             <span className="text-2xl font-black tracking-tighter">Finanza360</span>
           </div>
 
-          {/* Usuario */}
           <div className="mb-8 p-5 bg-slate-50 rounded-[2rem] border border-slate-100 flex items-center space-x-4">
             <div className="w-11 h-11 bg-white border-2 border-slate-200 rounded-2xl flex items-center justify-center text-slate-400 font-black shadow-sm">
               {currentUser.name.charAt(0).toUpperCase()}
@@ -773,7 +754,6 @@ const App: React.FC = () => {
               icon={<LayoutDashboard size={20} />}
               label="Resumen General"
             />
-
             <NavItem
               active={activeView === 'ai'}
               onClick={() => {
@@ -784,9 +764,7 @@ const App: React.FC = () => {
               label="Análisis Inteligente"
               isSpecial
             />
-
             <div className="h-px bg-slate-100 my-4 mx-2"></div>
-
             <NavItem
               active={activeView === 'accounts'}
               onClick={() => {
@@ -804,16 +782,15 @@ const App: React.FC = () => {
               }}
               icon={<Wallet size={20} />}
               label="Historial Movimientos"
-              />
-
-<NavItem
-  active={activeView === 'income'}
-  onClick={() => {
-    setActiveView('income');
-    setIsMobileMenuOpen(false);
-  }}
-  icon={<TrendingUp size={20} />}
-  label="Ingresos"
+            />
+            <NavItem
+              active={activeView === 'income'}
+              onClick={() => {
+                setActiveView('income');
+                setIsMobileMenuOpen(false);
+              }}
+              icon={<TrendingUp size={20} />}
+              label="Ingresos"
             />
             <NavItem
               active={activeView === 'portfolio'}
@@ -824,9 +801,7 @@ const App: React.FC = () => {
               icon={<TrendingUp size={20} />}
               label="Mi Portafolio"
             />
-
             <div className="h-px bg-slate-100 my-4 mx-2"></div>
-
             <NavItem
               active={activeView === 'work'}
               onClick={() => {
@@ -845,8 +820,6 @@ const App: React.FC = () => {
               icon={<Users size={20} />}
               label="Dinero Terceros"
             />
-
-            {/* Nuevo Botón: Financial Planning */}
             <NavItem
               active={activeView === 'planning'}
               onClick={() => {
@@ -856,7 +829,6 @@ const App: React.FC = () => {
               icon={<Target size={20} />}
               label="Planificación"
             />
-
             <NavItem
               active={activeView === 'budget'}
               onClick={() => {
@@ -891,12 +863,11 @@ const App: React.FC = () => {
                 </button>
               </div>
             </div>
-
             <button
               onClick={() =>
                 requestDelete(
                   'Darse de baja y eliminar cuenta',
-                  'Esta acción eliminará tu perfil y datos locales de este dispositivo. Si tu API soporta DELETE, también intentará borrar el estado en nube.',
+                  'Esta acción eliminará tu perfil y datos locales de este dispositivo.',
                   () => {
                     void handleSelfDeleteAccount();
                   }
@@ -907,7 +878,6 @@ const App: React.FC = () => {
               <UserX size={14} />
               Darse de baja
             </button>
-
             <button
               onClick={handleLogout}
               className="w-full py-3 text-[10px] font-black text-slate-300 hover:text-rose-500 uppercase tracking-widest transition-colors"
@@ -918,7 +888,6 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {/* Main */}
       <main className="flex-1 overflow-y-auto px-6 py-8 md:p-14 view-container">
         <div className="max-w-7xl mx-auto space-y-3">
           {isLoadingCloud && (
@@ -926,35 +895,29 @@ const App: React.FC = () => {
               Sincronizando datos con la nube...
             </div>
           )}
-
           {isDeletingAccount && (
             <div className="bg-rose-50 border border-rose-100 rounded-2xl px-4 py-3 text-xs font-bold uppercase tracking-wider text-rose-600">
               Eliminando cuenta...
             </div>
           )}
-
           {!isLoadingCloud && cloudStatus === 'saving' && (
             <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-xs font-bold uppercase tracking-wider text-blue-600">
               Guardando en la nube...
             </div>
           )}
-
           {!isLoadingCloud && cloudStatus === 'saved' && (
             <div className="bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-3 text-xs font-bold uppercase tracking-wider text-emerald-600">
               Datos sincronizados en la nube
             </div>
           )}
-
           {!isLoadingCloud && cloudStatus === 'error' && (
             <div className="bg-rose-50 border border-rose-100 rounded-2xl px-4 py-3 text-xs font-bold uppercase tracking-wider text-rose-600">
-              No se pudo sincronizar en nube (se guardó localmente)
+              No se pudo sincronizar en nube
             </div>
           )}
         </div>
 
         <div className="max-w-7xl mx-auto space-y-8 md:space-y-10">
-       
-
           <div className="space-y-12">
             {activeView === 'dashboard' && (
               <Dashboard
@@ -969,11 +932,14 @@ const App: React.FC = () => {
                 isSyncingRate={isSyncingRate}
               />
             )}
-
             {activeView === 'accounts' && (
-              <AccountsList accounts={accounts} onAdd={handleAddAccount} onDelete={handleDeleteAccount} />
+              <AccountsList 
+                accounts={accounts} 
+                onAdd={handleAddAccount} 
+                onUpdate={handleUpdateAccount}
+                onDelete={handleDeleteAccount} 
+              />
             )}
-
             {activeView === 'transactions' && (
               <TransactionsLog
                 transactions={transactions}
@@ -987,14 +953,13 @@ const App: React.FC = () => {
               />
             )}
             {activeView === 'income' && (
-  <IngresosModule
-    transactions={transactions}
-    selectedMonth={selectedMonth}
-    exchangeRate={exchangeRate}
-    incomeCategories={incomeCategories}
-  />
-)}
-
+              <IngresosModule
+                transactions={transactions}
+                selectedMonth={selectedMonth}
+                exchangeRate={exchangeRate}
+                incomeCategories={incomeCategories}
+              />
+            )}
             {activeView === 'work' && (
               <WorkManagement
                 transactions={transactions}
@@ -1002,11 +967,9 @@ const App: React.FC = () => {
                 exchangeRate={exchangeRate}
               />
             )}
-
             {activeView === 'custody' && (
               <CustodyManagement transactions={transactions} exchangeRate={exchangeRate} />
             )}
-
             {activeView === 'ai' && (
               <AIInsights
                 transactions={transactions}
@@ -1015,7 +978,6 @@ const App: React.FC = () => {
                 selectedMonth={selectedMonth}
               />
             )}
-
             {activeView === 'portfolio' && (
               <Portfolio
                 investments={investments}
@@ -1027,7 +989,6 @@ const App: React.FC = () => {
                 exchangeRate={exchangeRate}
               />
             )}
-
             {activeView === 'budget' && (
               <BudgetView
                 budgets={budgets}
@@ -1039,7 +1000,6 @@ const App: React.FC = () => {
                 expenseCategories={expenseCategories}
               />
             )}
-
             {activeView === 'settings' && (
               <CategorySettings
                 expenseCategories={expenseCategories}
@@ -1048,8 +1008,6 @@ const App: React.FC = () => {
                 onUpdateIncome={setIncomeCategories}
               />
             )}
-
-            {/* Renderizado de Múltiples Planes con props conectadas */}
             {activeView === 'planning' && (
               <FinancialPlanning 
                 savedPlans={financialPlans} 

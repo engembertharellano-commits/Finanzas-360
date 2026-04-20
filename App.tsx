@@ -90,7 +90,7 @@ const safeParse = <T,>(raw: string | null, fallback: T): T => {
 };
 
 const normalizeData = (input: unknown): PersistedFinanceData => {
-  const data = input as Partial<PersistedFinanceData> | null | undefined;
+const data = input as Partial<PersistedFinanceData> | null;
   return {
     accounts: Array.isArray(data?.accounts) ? data.accounts : [],
     transactions: Array.isArray(data?.transactions) ? data.transactions : [],

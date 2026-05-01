@@ -945,6 +945,7 @@ const App: React.FC = () => {
                 transactions={transactions}
                 accounts={accounts}
                 onAdd={handleAddTransaction}
+                onUpdate={handleUpdateTransaction}
                 onDelete={handleDeleteTransaction}
                 selectedMonth={selectedMonth}
                 exchangeRate={exchangeRate}

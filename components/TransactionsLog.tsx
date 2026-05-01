@@ -147,7 +147,7 @@ export const TransactionsLog: React.FC<Props> = ({
 
                     <td className="px-10 py-6">
                       <p className="text-sm font-black text-slate-900">
-                        {new Date(t.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                        {new Date(t.date.includes('T') ? t.date : `${t.date}T00:00:00`).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
                       </p>
                     </td>
 
@@ -161,17 +161,17 @@ export const TransactionsLog: React.FC<Props> = ({
                       </span>
                     </td>
 
-         <td className="px-10 py-6 text-right">
-  <p className={`font-bold ${
-    String(t.type).toLowerCase().includes('ing')
-      ? 'text-blue-500'
-      : String(t.type).toLowerCase().includes('gas')
-      ? 'text-red-500'
-      : 'text-black'
-  }`}>
-    ${t.amount.toFixed(2)}
-  </p>
-</td>
+                    <td className="px-10 py-6 text-right">
+                      <p className={`font-bold ${
+                        String(t.type).toLowerCase().includes('ing')
+                          ? 'text-blue-500'
+                          : String(t.type).toLowerCase().includes('gas')
+                          ? 'text-red-500'
+                          : 'text-black'
+                      }`}>
+                        ${t.amount.toFixed(2)}
+                      </p>
+                    </td>
 
                     <td className="px-10 py-6 text-center">
                       <button onClick={() => onDelete(t.id)}>

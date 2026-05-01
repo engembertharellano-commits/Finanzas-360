@@ -96,8 +96,11 @@ export default function IngresosModule({
     })
     .join(",");
 
-  const monthName =
-    new Date(selectedMonth).toLocaleString("es-ES",{month:"long"});
+  // ✅ CORRECCIÓN DE FECHA: Evitar desajuste de zona horaria al leer "YYYY-MM"
+  const monthName = useMemo(() => {
+    const [year, month] = selectedMonth.split('-').map(Number);
+    return new Intl.DateTimeFormat("es-ES", { month: "long" }).format(new Date(year, month - 1));
+  }, [selectedMonth]);
 
   return (
 
@@ -123,7 +126,7 @@ export default function IngresosModule({
       <div className="bg-white rounded-2xl p-6 shadow-sm border">
 
         <h3 className="text-xl font-bold mb-2">
-          Salario del mes de {monthName}
+          Salario del mes de <span className="capitalize">{monthName}</span>
         </h3>
 
         <p className="text-2xl font-bold text-green-600 mb-6">

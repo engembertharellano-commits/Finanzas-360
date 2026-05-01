@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Transaction, 
@@ -25,7 +24,13 @@ export const TransactionForm: React.FC<Props> = ({
   const [commission, setCommission] = useState<string>('0');
   const [type, setType] = useState<TransactionType>('Gasto');
   const [category, setCategory] = useState<Category>('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  // ✅ CORRECCIÓN DE FECHA LOCAL AQUÍ
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  
   const [accountId, setAccountId] = useState(accounts[0]?.id || '');
   const [toAccountId, setToAccountId] = useState('');
   const [adjustmentDirection, setAdjustmentDirection] = useState<'plus' | 'minus'>('plus');

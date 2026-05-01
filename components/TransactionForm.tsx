@@ -9,6 +9,7 @@ import {
 import { ArrowRight, RefreshCcw, DollarSign, Settings2, Plus, Minus, Briefcase, Users } from 'lucide-react';
 
 interface Props {
+  initialData?: Transaction; // ✅ AÑADIDO: Recibe datos si está en modo edición
   onAdd: (transaction: Omit<Transaction, 'id'>) => void;
   accounts: BankAccount[];
   globalExchangeRate: number;
@@ -17,7 +18,7 @@ interface Props {
 }
 
 export const TransactionForm: React.FC<Props> = ({ 
-  onAdd, accounts, globalExchangeRate, expenseCategories, incomeCategories 
+  initialData, onAdd, accounts, globalExchangeRate, expenseCategories, incomeCategories 
 }) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState<string>('');
@@ -25,7 +26,6 @@ export const TransactionForm: React.FC<Props> = ({
   const [type, setType] = useState<TransactionType>('Gasto');
   const [category, setCategory] = useState<Category>('');
   
-  // ✅ CORRECCIÓN DE FECHA LOCAL AQUÍ
   const [date, setDate] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -35,7 +35,6 @@ export const TransactionForm: React.FC<Props> = ({
   const [toAccountId, setToAccountId] = useState('');
   const [adjustmentDirection, setAdjustmentDirection] = useState<'plus' | 'minus'>('plus');
   
-  // Segmentación de fondos
   const [fundType, setFundType] = useState<'personal' | 'work' | 'thirdParty'>('personal');
   const [thirdPartyOwner, setThirdPartyOwner] = useState('');
   
@@ -49,12 +48,43 @@ export const TransactionForm: React.FC<Props> = ({
     selectedAccount && targetAccount && 
     selectedAccount.currency !== targetAccount.currency;
 
+  // ✅ AÑADIDO: Cargar los datos iniciales si estamos editando
   useEffect(() => {
+    if (initialData) {
+      setDescription(initialData.description || '');
+      setAmount(initialData.amount?.toString() || '');
+      setCommission(initialData.commission?.toString() || '0');
+      setType(initialData.type || 'Gasto');
+      
+      let d = initialData.date || '';
+      if (d.includes('T')) d = d.split('T')[0];
+      setDate(d);
+      
+      setAccountId(initialData.accountId || '');
+      setToAccountId(initialData.toAccountId || '');
+      setAdjustmentDirection(initialData.adjustmentDirection || 'plus');
+      
+      if (initialData.isWorkRelated) setFundType('work');
+      else if (initialData.isThirdParty) setFundType('thirdParty');
+      else setFundType('personal');
+      
+      setThirdPartyOwner(initialData.thirdPartyOwner || '');
+      setTargetAmount(initialData.targetAmount?.toString() || '');
+    }
+  }, [initialData]);
+
+  useEffect(() => {
+    // Si estamos editando y no hemos cambiado el tipo, mantenemos la categoría original
+    if (initialData && initialData.type === type) {
+      setCategory(initialData.category || '');
+      return;
+    }
+    
     if (type === 'Ingreso') setCategory(incomeCategories[0] || '');
     else if (type === 'Gasto') setCategory(expenseCategories[0] || '');
     else if (type === 'Ajuste') setCategory('Conciliación');
     else setCategory('Transferencia');
-  }, [type, incomeCategories, expenseCategories]);
+  }, [type, incomeCategories, expenseCategories, initialData]);
 
   const updateConversion = useCallback((sourceAmt: string, rate: string, fieldChanged: 'amount' | 'rate' | 'target') => {
     if (!isBimonetary) return;
@@ -80,7 +110,7 @@ export const TransactionForm: React.FC<Props> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description || !amount || !accountId) return;
+    if (!description || !amount || !accountId || !date) return;
 
     onAdd({
       description,
@@ -100,18 +130,22 @@ export const TransactionForm: React.FC<Props> = ({
       thirdPartyOwner: fundType === 'thirdParty' ? thirdPartyOwner : undefined
     });
 
-    setDescription('');
-    setAmount('');
-    setCommission('0');
-    setTargetAmount('');
-    setThirdPartyOwner('');
-    setManualRate(globalExchangeRate.toString());
+    if (!initialData) {
+      setDescription('');
+      setAmount('');
+      setCommission('0');
+      setTargetAmount('');
+      setThirdPartyOwner('');
+      setManualRate(globalExchangeRate.toString());
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-200 animate-in fade-in slide-in-from-top-4 duration-300">
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <h3 className="text-xl font-black text-slate-900">Nueva Operación</h3>
+        <h3 className="text-xl font-black text-slate-900">
+          {initialData ? 'Editar Operación' : 'Nueva Operación'}
+        </h3>
         
         {/* Selector de Fondo */}
         <div className="flex bg-slate-100 p-1 rounded-2xl w-full md:w-auto overflow-x-auto">
@@ -169,7 +203,12 @@ export const TransactionForm: React.FC<Props> = ({
           ))}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* ✅ AÑADIDO: Input de Fecha dentro del grid para que se pueda modificar */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Fecha</label>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700" required />
+          </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Descripción</label>
             <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ej. Depósito Mesada, Pago Colegio..." className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 font-medium" required />
@@ -258,11 +297,17 @@ export const TransactionForm: React.FC<Props> = ({
         <button 
           type="submit" 
           className={`w-full font-black py-4 rounded-2xl shadow-xl flex items-center justify-center gap-2 transition-all ${
-            fundType === 'work' ? 'bg-indigo-600' : fundType === 'thirdParty' ? 'bg-emerald-600' : 'bg-slate-900'
+            initialData ? 'bg-blue-600' : fundType === 'work' ? 'bg-indigo-600' : fundType === 'thirdParty' ? 'bg-emerald-600' : 'bg-slate-900'
           } text-white`}
         >
           <ArrowRight size={20} />
-          {fundType === 'work' ? 'Registrar en Pote Trabajo' : fundType === 'thirdParty' ? `Guardar Dinero de ${thirdPartyOwner || 'Terceros'}` : 'Confirmar Movimiento'}
+          {initialData 
+            ? 'Guardar Cambios' 
+            : fundType === 'work' 
+              ? 'Registrar en Pote Trabajo' 
+              : fundType === 'thirdParty' 
+                ? `Guardar Dinero de ${thirdPartyOwner || 'Terceros'}` 
+                : 'Confirmar Movimiento'}
         </button>
       </div>
     </form>

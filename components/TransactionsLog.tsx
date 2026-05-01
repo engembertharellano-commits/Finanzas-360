@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { Transaction, BankAccount } from '../types';
 import { TransactionForm } from './TransactionForm';
-import { Search, ArrowUpCircle, ArrowDownCircle, RefreshCcw, Trash2, Briefcase, Users } from 'lucide-react';
+import { Search, ArrowUpCircle, ArrowDownCircle, RefreshCcw, Trash2, Edit2, Briefcase, Users } from 'lucide-react';
 
 interface Props {
   transactions: Transaction[];
   accounts: BankAccount[];
   onAdd: (t: Omit<Transaction, 'id'>) => void;
+  onUpdate: (t: Transaction) => void; // AÑADIDO: Prop para actualizar
   onDelete: (id: string) => void;
   selectedMonth: string;
   exchangeRate: number;
@@ -15,11 +16,12 @@ interface Props {
 }
 
 export const TransactionsLog: React.FC<Props> = ({ 
-  transactions, accounts, onAdd, onDelete, selectedMonth, exchangeRate, expenseCategories, incomeCategories 
+  transactions, accounts, onAdd, onUpdate, onDelete, selectedMonth, exchangeRate, expenseCategories, incomeCategories 
 }) => {
 
   const [filter, setFilter] = useState<string>('');
   const [showAdd, setShowAdd] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null); // AÑADIDO: Estado para la edición
 
   // ✅ NUEVO ESTADO
   const [selectedAccount, setSelectedAccount] = useState<string>("all");
@@ -48,6 +50,12 @@ export const TransactionsLog: React.FC<Props> = ({
       );
     });
 
+  const handleEditClick = (t: Transaction) => {
+    setEditingTransaction(t);
+    setShowAdd(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' }); // Sube al inicio donde está el formulario
+  };
+
   return (
     <div className="space-y-8 pb-10">
 
@@ -58,7 +66,14 @@ export const TransactionsLog: React.FC<Props> = ({
         </div>
 
         <button 
-          onClick={() => setShowAdd(!showAdd)}
+          onClick={() => {
+            if (showAdd) {
+              setShowAdd(false);
+              setEditingTransaction(null); // Limpia la edición si cierra el panel
+            } else {
+              setShowAdd(true);
+            }
+          }}
           className={`w-full sm:w-auto px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl active:scale-95 ${
             showAdd ? 'bg-white text-slate-600 border-2 border-slate-200' : 'bg-slate-900 text-white hover:bg-slate-800'
           }`}
@@ -70,6 +85,7 @@ export const TransactionsLog: React.FC<Props> = ({
       {showAdd && (
         <div className="animate-in fade-in slide-in-from-top-6 duration-500">
           <TransactionForm 
+            initialData={editingTransaction} // AÑADIDO: Pasa los datos iniciales si está editando
             onAdd={(t) => {
               let enhanced = { ...t };
 
@@ -81,8 +97,15 @@ export const TransactionsLog: React.FC<Props> = ({
                 };
               }
 
-              onAdd(enhanced);
+              if (editingTransaction) {
+                 // Si está editando, inyecta el ID original y llama a onUpdate
+                 onUpdate({ ...enhanced, id: editingTransaction.id });
+              } else {
+                 onAdd(enhanced);
+              }
+              
               setShowAdd(false);
+              setEditingTransaction(null); // Limpia la edición
             }} 
             accounts={accounts}
             globalExchangeRate={exchangeRate}
@@ -174,9 +197,14 @@ export const TransactionsLog: React.FC<Props> = ({
                     </td>
 
                     <td className="px-10 py-6 text-center">
-                      <button onClick={() => onDelete(t.id)}>
-                        <Trash2 size={18} />
-                      </button>
+                      <div className="flex items-center justify-center gap-3">
+                         <button onClick={() => handleEditClick(t)} className="text-blue-400 hover:text-blue-600 transition-colors" title="Editar movimiento">
+                           <Edit2 size={18} />
+                         </button>
+                         <button onClick={() => onDelete(t.id)} className="text-slate-400 hover:text-red-500 transition-colors" title="Eliminar movimiento">
+                           <Trash2 size={18} />
+                         </button>
+                      </div>
                     </td>
 
                   </tr>

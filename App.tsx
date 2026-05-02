@@ -14,7 +14,8 @@ import {
   Briefcase,
   Users,
   UserX,
-  Target
+  Target,
+  BarChart3 // NUEVO ICONO
 } from 'lucide-react';
 
 import {
@@ -42,6 +43,7 @@ import { Auth } from './components/Auth';
 import { FinanceAIService } from './services/geminiService';
 import { FinancialPlanning } from './components/planning/FinancialPlanning';
 import IngresosModule from './components/IngresosModule';
+import { FinancialReport } from './components/FinancialReport'; // NUEVO COMPONENTE
 
 type View =
   | 'dashboard'
@@ -54,7 +56,8 @@ type View =
   | 'settings'
   | 'work'
   | 'custody'
-  | 'planning';
+  | 'planning'
+  | 'report'; // NUEVA VISTA
 
 type PersistedFinanceData = {
   accounts: BankAccount[];
@@ -218,18 +221,6 @@ const getInvestmentRawValue = (inv: Investment): number => {
   }
 
   return 0;
-};
-
-const getInvestmentValueUSD = (inv: Investment, exchangeRate: number): number => {
-  const raw = getInvestmentRawValue(inv);
-  if (!Number.isFinite(raw) || raw <= 0) return 0;
-
-  if (inv.currency === 'VES') {
-    if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) return 0;
-    return raw / exchangeRate;
-  }
-
-  return raw;
 };
 
 const App: React.FC = () => {
@@ -754,6 +745,18 @@ const App: React.FC = () => {
               icon={<LayoutDashboard size={20} />}
               label="Resumen General"
             />
+            
+            {/* NUEVO ITEM NAVEGACIÓN */}
+            <NavItem
+              active={activeView === 'report'}
+              onClick={() => {
+                setActiveView('report');
+                setIsMobileMenuOpen(false);
+              }}
+              icon={<BarChart3 size={20} />}
+              label="Informe Financiero"
+            />
+
             <NavItem
               active={activeView === 'ai'}
               onClick={() => {
@@ -932,6 +935,19 @@ const App: React.FC = () => {
                 isSyncingRate={isSyncingRate}
               />
             )}
+            
+            {/* RENDERIZADO NUEVA VISTA */}
+            {activeView === 'report' && (
+              <FinancialReport
+                accounts={accounts}
+                transactions={transactions}
+                investments={investments}
+                exchangeRate={exchangeRate}
+                selectedMonth={selectedMonth}
+                financialPlans={financialPlans}
+              />
+            )}
+
             {activeView === 'accounts' && (
               <AccountsList 
                 accounts={accounts} 

@@ -30,10 +30,10 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
   exchangeRate = 1,
   selectedMonth
 }) => {
-  // --- ESTILOS DE IMPRESIÓN CORREGIDOS ---
+  // --- ESTILOS DE IMPRESIÓN LIMPIOS ---
   const printStyles = `
     @media print {
-      @page { size: A4 portrait; margin: 0; }
+      @page { size: A4 portrait; margin: 10mm; }
       body { 
         -webkit-print-color-adjust: exact !important; 
         print-color-adjust: exact !important; 
@@ -42,12 +42,9 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
       .no-print { display: none !important; }
       .print-container { 
         width: 210mm !important; 
-        min-height: 297mm !important; 
         margin: 0 auto !important; 
-        padding: 10mm !important;
         box-shadow: none !important; 
-        border: none !important;
-        display: block !important;
+        border: none !important; 
       }
       .print-break-avoid { break-inside: avoid; page-break-inside: avoid; }
     }
@@ -69,14 +66,14 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { netWorth: assets - liabilities };
   }, [accounts, investments, exchangeRate]);
 
-  // 2. Fondo de Emergencia
+  // 2. FONDO DE EMERGENCIA
   const emergencyFund = useMemo(() => {
     const fundAcc = accounts.find(a => a.name.toLowerCase().includes('emergencia'));
     if (!fundAcc) return { current: 0 };
     return { current: toUSD(fundAcc.balance, fundAcc.currency) };
   }, [accounts, exchangeRate]);
 
-  // 3. Flujos del Mes
+  // 3. Flujos del Mes y FLUJO DE CAJA
   const { income, expenses, savingsRate, cashFlow } = useMemo(() => {
     let inc = 0, exp = 0;
     transactions.filter(t => t?.date?.startsWith(selectedMonth)).forEach(t => {
@@ -87,7 +84,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { income: inc, expenses: exp, savingsRate: inc > 0 ? ((inc - exp) / inc) * 100 : 0, cashFlow: inc - exp };
   }, [transactions, selectedMonth, exchangeRate]);
 
-  // 4. Gráficos Históricos (6 Meses) con cantidades arriba
+  // 4. Gráficos Históricos Operativos (6 Meses)
   const history6Months = useMemo(() => {
     if (!selectedMonth) return [];
     const [year, month] = selectedMonth.split('-').map(Number);
@@ -136,7 +133,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { segments, total, conicGradient: segments.length > 0 ? segments.map(s => `${s.color} ${s.start}deg ${s.end}deg`).join(', ') : '#e2e8f0 0deg 360deg' };
   }, [investments, exchangeRate]);
 
-  // 7. Análisis de Gastos Mayores
+  // 7. Análisis de Gastos Mayores (Top 5)
   const spendingTable = useMemo(() => {
     const cats: Record<string, number> = {};
     transactions.filter(t => t?.date?.startsWith(selectedMonth) && t.type === 'Gasto').forEach(t => {
@@ -145,7 +142,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return Object.entries(cats).sort((a,b) => b[1]-a[1]).slice(0, 5);
   }, [transactions, selectedMonth, exchangeRate]);
 
-  // --- FORMATEADORES SEGUROS ---
+  // --- FORMATEADORES ---
   const fUSD = (v: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v || 0);
   const fPct = (v: number) => isNaN(v) ? '0.0%' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%`;
 
@@ -156,29 +153,32 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
   return (
     <>
       <style>{printStyles}</style>
-      <div className="bg-slate-50 min-h-screen py-8"> {/* Removida clase no-print que causaba hoja en blanco */}
+      
+      {/* Fondo exterior gris para que la hoja A4 blanca destaque */}
+      <div className="bg-slate-100 min-h-screen py-6 md:py-10 print:py-0 print:bg-white">
         
-        <div className="print-container relative max-w-[210mm] mx-auto bg-white shadow-2xl overflow-hidden font-sans text-slate-800 border border-slate-200">
+        {/* Contenedor principal de la hoja */}
+        <div className="print-container relative max-w-[210mm] mx-auto bg-white shadow-2xl font-sans text-slate-800 border border-slate-200">
           
-          {/* HEADER CORPORATIVO */}
+          {/* HEADER CORPORATIVO SÓLIDO AZUL OSCURO */}
           <div className="bg-slate-900 text-white px-10 py-8 flex justify-between items-center relative z-10 print-break-avoid border-b border-slate-800">
             <div className="flex items-center gap-6">
-              <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 border border-blue-700">
+              <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 border border-blue-700 no-print">
                 <Building2 size={28} className="text-white" />
               </div>
               <div>
                 <h1 className="text-3xl font-black tracking-tighter uppercase">Balance Financiero Mensual</h1>
-                <p className="text-blue-400 font-bold text-xs mt-1 uppercase tracking-widest">{displayDate}</p>
+                <p className="text-blue-400 font-bold text-xs mt-1 uppercase tracking-widest">Periodo: {displayDate}</p>
               </div>
             </div>
-            <button onClick={() => window.print()} className="no-print bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-lg flex items-center gap-2">
+            <button onClick={() => window.print()} className="no-print bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase hover:bg-blue-500 transition-all shadow-lg flex items-center gap-2">
               <Download size={16} /> Exportar
             </button>
           </div>
 
-          <div className="p-10 space-y-12 relative z-10">
+          <div className="p-10 space-y-12 relative z-10 bg-white">
             
-            {/* SECCIÓN 1: KPIs */}
+            {/* SECCIÓN 1: KPIs Principales */}
             <div className="grid grid-cols-4 gap-6 print-break-avoid border-b border-slate-200 pb-10">
               <KPICol title="Patrimonio Neto" value={fUSD(netWorth)} desc="Total activos" color="bg-blue-900" icon={<Briefcase size={20}/>} />
               <KPICol title="Ingresos" value={fUSD(income)} desc="Entradas operativas" color="bg-emerald-600" icon={<TrendingUp size={20}/>} />
@@ -186,10 +186,10 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               <KPICol title="Flujo de Caja" value={fUSD(cashFlow)} desc="Saldo del periodo" color={cashFlow >= 0 ? "bg-teal-600" : "bg-rose-600"} icon={<Activity size={20}/>} highlight={cashFlow > 0} />
             </div>
 
-            {/* SECCIÓN 2: BALANCE OPERATIVO HISTÓRICO CON COLORES Y CANTIDADES */}
+            {/* SECCIÓN 2: BALANCE OPERATIVO HISTÓRICO CON BARRAS CORRECTAS Y NÚMEROS */}
             <div className="print-break-avoid bg-slate-50 border border-slate-100 p-8 rounded-3xl">
               <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-14 text-center">Comparación de Flujo de Caja (6 Meses)</h2>
-              <div className="flex items-end justify-center gap-6 h-48 w-full relative px-10">
+              <div className="flex items-end justify-center gap-6 h-48 w-full relative px-4 md:px-10">
                 <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8 opacity-10 px-10">
                   {[0,1,2,3].map(i => <div key={i} className="w-full border-t border-slate-900 border-dashed h-0" />)}
                 </div>
@@ -199,24 +199,24 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                     <div key={i} className="flex-1 flex flex-col items-center justify-end h-full relative z-10">
                       <div className="flex items-end gap-1.5 w-full justify-center h-full pb-8">
                         {/* Barra Ingresos - Azul Oscuro con cantidad */}
-                        <div className="flex flex-col items-center flex-1">
-                          <span className="text-[7px] font-black text-slate-900 mb-1">{m.income > 0 ? fUSD(m.income) : ''}</span>
-                          <div className="w-full max-w-[20px] bg-slate-900 rounded-t-sm shadow-md" style={{height: `${Math.max((m.income/max)*100, 2)}%`}} />
+                        <div className="flex flex-col items-center flex-1 w-full max-w-[24px]">
+                          <span className="text-[7px] md:text-[8px] font-black text-slate-900 mb-1">{m.income > 0 ? fUSD(m.income) : ''}</span>
+                          <div className="w-full bg-slate-900 rounded-t-sm shadow-md" style={{height: `${Math.max((m.income/max)*100, 2)}%`}} />
                         </div>
                         {/* Barra Gastos - Roja con cantidad */}
-                        <div className="flex flex-col items-center flex-1">
-                          <span className="text-[7px] font-black text-rose-600 mb-1">{m.expenses > 0 ? fUSD(m.expenses) : ''}</span>
-                          <div className="w-full max-w-[20px] bg-rose-600 rounded-t-sm shadow-md" style={{height: `${Math.max((m.expenses/max)*100, 2)}%`}} />
+                        <div className="flex flex-col items-center flex-1 w-full max-w-[24px]">
+                          <span className="text-[7px] md:text-[8px] font-black text-rose-600 mb-1">{m.expenses > 0 ? fUSD(m.expenses) : ''}</span>
+                          <div className="w-full bg-rose-600 rounded-t-sm shadow-md" style={{height: `${Math.max((m.expenses/max)*100, 2)}%`}} />
                         </div>
                       </div>
-                      <span className="absolute bottom-0 text-[10px] font-bold text-slate-500 uppercase">{m.label}</span>
+                      <span className="absolute bottom-0 text-[9px] md:text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">{m.label}</span>
                     </div>
                   );
                 })}
               </div>
-              <div className="flex justify-center gap-6 mt-6 pt-4 border-t border-slate-100">
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-slate-900 rounded-sm"></div><span className="text-[10px] font-bold text-slate-600 uppercase">Entra (Azul)</span></div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-rose-600 rounded-sm"></div><span className="text-[10px] font-bold text-slate-600 uppercase">Sale (Rojo)</span></div>
+              <div className="flex justify-center gap-6 mt-8 pt-4 border-t border-slate-100">
+                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-slate-900 rounded-sm"></div><span className="text-[10px] font-bold text-slate-600 uppercase">Ingresos</span></div>
+                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-rose-600 rounded-sm"></div><span className="text-[10px] font-bold text-slate-600 uppercase">Gastos</span></div>
               </div>
             </div>
 
@@ -224,12 +224,13 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
             <div className="grid grid-cols-5 gap-10 print-break-avoid border-t border-slate-200 pt-10">
               <div className="col-span-3 space-y-6">
                 <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest flex items-center gap-2"><TrendingUp size={16} className="text-blue-600"/> Rendimiento de Activos (ROI Real)</h2>
-                <div className="h-56 border border-slate-100 bg-white p-6 flex items-end justify-around gap-4 relative shadow-sm">
+                
+                <div className="h-56 border border-slate-100 bg-slate-50 p-6 flex items-end justify-around gap-4 relative shadow-sm rounded-xl">
                   {assetBreakdown.slice(0, 5).map((inv, i) => {
                     const max = Math.max(...assetBreakdown.map(x => Math.max(x.cost, x.current))) || 1;
                     return (
                       <div key={i} className="flex-1 flex flex-col items-center justify-end h-full z-10 w-full group">
-                        <div className="flex items-end gap-1 w-full justify-center flex-1 pb-0">
+                        <div className="flex items-end gap-1 w-full justify-center flex-1 pb-0 group-hover:pb-1 transition-all">
                           <div className="w-4 bg-slate-300 rounded-t-sm" style={{height: `${Math.max((inv.cost/max)*100, 2)}%`}} />
                           <div className="w-4 bg-blue-700 rounded-t-sm" style={{height: `${Math.max((inv.current/max)*100, 2)}%`}} />
                         </div>
@@ -238,18 +239,19 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                     );
                   })}
                 </div>
+                
                 <table className="w-full text-[10px] border-collapse border border-slate-100">
                   <thead>
                     <tr className="bg-slate-900 text-white uppercase tracking-widest border-b border-slate-800">
-                      <th className="p-2 text-left">Posición</th>
+                      <th className="p-2 text-left rounded-tl-lg">Posición</th>
                       <th className="p-2 text-right">Inversión</th>
                       <th className="p-2 text-right">Valor Actual</th>
-                      <th className="p-2 text-center">ROI</th>
+                      <th className="p-2 text-center rounded-tr-lg">ROI</th>
                     </tr>
                   </thead>
                   <tbody>
                     {assetBreakdown.length > 0 ? assetBreakdown.map((inv, i) => (
-                      <tr key={i} className="border-b border-slate-100">
+                      <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="p-2 font-black text-slate-700 uppercase">{inv.name}</td>
                         <td className="p-2 text-right text-slate-500 font-medium">{fUSD(inv.cost)}</td>
                         <td className="p-2 text-right font-bold text-slate-900">{fUSD(inv.current)}</td>
@@ -271,7 +273,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                 <div className="aspect-square bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center relative shadow-inner">
                   <div className="w-48 h-48 rounded-full" style={{ background: `conic-gradient(${portfolioData.conicGradient})` }} />
                   <div className="absolute w-32 h-32 bg-white rounded-full flex flex-col items-center justify-center shadow-xl border border-slate-50">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">AUM Total</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Valuación Total</span>
                     <span className="text-sm font-black text-slate-900">{fUSD(portfolioData.total)}</span>
                   </div>
                 </div>
@@ -318,7 +320,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               <div className="space-y-6">
                 <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-2 flex items-center gap-2"><Zap size={16} className="text-blue-600"/> Proyección a 6 Meses</h2>
                 <div className="bg-slate-50 border border-slate-100 p-6 rounded-2xl space-y-3">
-                  <div className="flex justify-between items-center p-3.5 bg-white border border-slate-100 rounded-xl">
+                  <div className="flex justify-between items-center p-3.5 bg-white border border-slate-100 rounded-xl shadow-sm">
                     <span className="text-[10px] font-bold text-slate-500 uppercase">Escenario Base</span>
                     <span className="text-xs font-black text-slate-900">{fUSD(netWorth + (cashFlow * 6))}</span>
                   </div>
@@ -364,7 +366,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
 };
 
 const KPICol = ({ title, value, desc, color, icon, highlight = false }: any) => (
-  <div className="text-center p-4">
+  <div className="text-center p-4 border border-transparent hover:border-slate-100 hover:bg-slate-50 transition-all rounded-2xl">
     <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${color} text-white shadow-lg`}>
       {icon}
     </div>
@@ -375,7 +377,7 @@ const KPICol = ({ title, value, desc, color, icon, highlight = false }: any) => 
 );
 
 const AuditBox = ({ title, value, desc }: any) => (
-  <div className="flex gap-4 items-start p-5 bg-white border border-slate-100 shadow-sm relative overflow-hidden h-full rounded-xl">
+  <div className="flex gap-4 items-start p-5 bg-slate-50 border border-slate-100 shadow-sm relative overflow-hidden h-full rounded-xl">
     <div className="absolute top-0 right-0 p-2 opacity-5"><Target size={40}/></div>
     <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0"><Shield size={20}/></div>
     <div>

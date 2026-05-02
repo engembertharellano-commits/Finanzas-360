@@ -11,7 +11,7 @@ import {
   PieChart,
   BarChart2,
   Building2,
-  Target // <-- AQUÍ ESTABA EL ERROR: Faltaba importar este ícono
+  Target
 } from 'lucide-react';
 import { BankAccount, Transaction, Investment, FinancialPlan } from '../types';
 
@@ -46,7 +46,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     }
   `;
 
-  // --- LÓGICA DE DATOS ---
+  // --- LÓGICA DE DATOS 100% REAL ---
   const toUSD = (amount: number, currency: string) => currency === 'VES' ? amount / exchangeRate : amount;
 
   // 1. Patrimonio Actual
@@ -65,7 +65,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { totalAssets: assets, totalLiabilities: liabilities, netWorth: assets - liabilities };
   }, [accounts, investments, exchangeRate]);
 
-  // 2. Flujo del Mes Seleccionado (Con validación de fecha segura)
+  // 2. Flujo del Mes Seleccionado
   const { income, expenses, cashFlow, savingsRate } = useMemo(() => {
     let inc = 0, exp = 0;
     transactions.filter(t => t?.date?.startsWith(selectedMonth)).forEach(t => {
@@ -76,7 +76,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { income: inc, expenses: exp, cashFlow: inc - exp, savingsRate: inc > 0 ? ((inc - exp) / inc) * 100 : 0 };
   }, [transactions, selectedMonth, exchangeRate]);
 
-  // 3. Generación Histórica (Últimos 6 meses) para Gráficos
+  // 3. Generación Histórica REAL (Últimos 6 meses) a partir de transacciones
   const history6Months = useMemo(() => {
     if (!selectedMonth) return [];
     const [year, month] = selectedMonth.split('-').map(Number);
@@ -101,20 +101,28 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
 
   const maxHistoryValue = Math.max(...history6Months.map(m => Math.max(m.income, m.expenses))) || 1;
 
-  // 4. Evolución de Inversiones (Simulada/Agrupada para el gráfico mensual)
-  const investmentHistory = useMemo(() => {
-    const currentPortfolioValue = investments.reduce((acc, inv) => acc + toUSD(inv.value || inv.currentValue || (inv.quantity * (inv.currentMarketPrice || inv.buyPrice)) || 0, inv.currency), 0);
-    let runningValue = currentPortfolioValue;
-    const history = [...history6Months].reverse().map((m) => {
-      const val = runningValue;
-      runningValue = runningValue - (m.net > 0 ? m.net * 0.2 : currentPortfolioValue * 0.02);
-      if (runningValue < 0) runningValue = 0;
-      return { label: m.label, value: val };
-    }).reverse();
-    return history;
-  }, [history6Months, investments, exchangeRate]);
+  // 4. NUEVO: Rendimiento Real de Inversiones (ROI)
+  const investmentPerformance = useMemo(() => {
+    const perfData = investments.map(inv => {
+      // Costo de compra (Capital invertido real)
+      const cost = toUSD(inv.initialInvestment || (inv.quantity * inv.buyPrice) || 0, inv.currency);
+      // Valor de mercado actual
+      const current = toUSD(inv.value || inv.currentValue || (inv.quantity * (inv.currentMarketPrice || inv.buyPrice)) || 0, inv.currency);
+      const profit = current - cost;
+      const roi = cost > 0 ? (profit / cost) * 100 : (inv.performance || inv.yieldRate || 0); // Fallback a campos directos si existen
+      
+      return { 
+        name: inv.ticker || inv.name || 'Activo', 
+        cost, 
+        current, 
+        roi 
+      };
+    }).sort((a, b) => b.current - a.current).slice(0, 4); // Top 4 por tamaño de posición
 
-  const maxInvestValue = Math.max(...investmentHistory.map(m => m.value)) || 1;
+    return perfData;
+  }, [investments, exchangeRate]);
+
+  const maxInvestValue = Math.max(...investmentPerformance.map(i => Math.max(i.cost, i.current))) || 1;
 
   // 5. Portafolio Actual (Donut)
   const portfolioData = useMemo(() => {
@@ -147,7 +155,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
 
   // --- FORMATEADORES ---
   const fUSD = (v: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
-  const fPct = (v: number) => `${v.toFixed(1)}%`;
+  const fPct = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1)}%`;
   
   const [year, month] = selectedMonth.split('-');
   const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -245,7 +253,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                     <tr key={i} className="hover:bg-slate-50">
                       <td className="p-3 border border-slate-200 font-bold text-slate-700">{cat}</td>
                       <td className="p-3 border border-slate-200 text-right text-slate-900">{fUSD(val)}</td>
-                      <td className="p-3 border border-slate-200 text-center text-blue-600 font-black">{fPct((val/expenses)*100)}</td>
+                      <td className="p-3 border border-slate-200 text-center text-blue-600 font-black">{((val/expenses)*100).toFixed(1)}%</td>
                     </tr>
                   )) : (
                     <tr><td colSpan={3} className="p-4 text-center text-slate-400 font-bold uppercase text-[10px]">Sin movimientos</td></tr>
@@ -260,22 +268,39 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               </table>
             </div>
 
-            {/* Evolución de Inversiones */}
+            {/* Rendimiento Real de Inversiones (ROI) */}
             <div>
               <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <TrendingUp size={16}/> Crecimiento de Inversiones (6 Meses)
+                <TrendingUp size={16}/> Rendimiento del Portafolio (Top 4)
               </h2>
-              <div className="border border-slate-200 p-6 rounded-none h-[220px] flex items-end justify-between relative px-8 bg-white">
-                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-6 opacity-20 px-8 py-6">
+              <div className="border border-slate-200 p-6 rounded-none h-[220px] flex items-end justify-center gap-4 relative px-4 bg-white">
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8 opacity-20 px-4 py-6">
                   {[0,1,2,3].map(i => <div key={i} className="w-full border-t border-slate-400 border-dashed h-0" />)}
                 </div>
-                {investmentHistory.map((m, i) => (
-                  <div key={i} className="flex flex-col items-center justify-end h-full relative z-10 w-full group">
-                    <span className="text-[8px] font-bold text-blue-900 mb-1 opacity-0 group-hover:opacity-100 no-print transition-opacity absolute -top-4">{fUSD(m.value)}</span>
-                    <div className="w-8 bg-blue-500 rounded-t-sm border border-blue-600" style={{height: `${Math.max((m.value / maxInvestValue) * 100, 2)}%`}}></div>
-                    <span className="text-[9px] font-bold text-slate-500 uppercase mt-2">{m.label}</span>
+                
+                {investmentPerformance.length > 0 ? investmentPerformance.map((inv, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center justify-end h-full relative z-10 group">
+                    <div className="flex items-end gap-1 w-full justify-center h-full pb-8">
+                      {/* Barra Capital Invertido */}
+                      <div className="w-full max-w-[20px] bg-slate-300 rounded-t-sm" title={`Inversión: ${fUSD(inv.cost)}`} style={{height: `${Math.max((inv.cost / maxInvestValue) * 100, 2)}%`}}></div>
+                      {/* Barra Valor Actual */}
+                      <div className="w-full max-w-[20px] bg-emerald-500 rounded-t-sm" title={`Actual: ${fUSD(inv.current)}`} style={{height: `${Math.max((inv.current / maxInvestValue) * 100, 2)}%`}}></div>
+                    </div>
+                    {/* Badge ROI */}
+                    <span className={`absolute top-0 text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm ${inv.roi >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                      {fPct(inv.roi)}
+                    </span>
+                    <span className="absolute bottom-0 text-[9px] font-bold text-slate-500 uppercase truncate w-full text-center">{inv.name}</span>
                   </div>
-                ))}
+                )) : (
+                  <div className="flex items-center justify-center h-full w-full">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Sin datos de compra/mercado</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-center gap-6 mt-3">
+                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-slate-300 rounded-sm"></div><span className="text-[9px] font-bold text-slate-500 uppercase">Capital Invertido</span></div>
+                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-500 rounded-sm"></div><span className="text-[9px] font-bold text-slate-500 uppercase">Valor de Mercado</span></div>
               </div>
             </div>
           </div>
@@ -299,9 +324,9 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                     <div key={i} className="flex justify-between items-center text-[10px]">
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 border border-slate-200" style={{backgroundColor: s.color}}></div>
-                        <span className="font-bold text-slate-600 uppercase">{s.name}</span>
+                        <span className="font-bold text-slate-600 uppercase truncate max-w-[80px]">{s.name}</span>
                       </div>
-                      <span className="font-black text-slate-900">{fPct(s.perc)}</span>
+                      <span className="font-black text-slate-900">{s.perc.toFixed(1)}%</span>
                     </div>
                   )) : <p className="text-[10px] text-slate-400 uppercase font-bold">Sin activos</p>}
                 </div>
@@ -317,7 +342,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                 <div className="p-4 bg-slate-50 border border-slate-200 flex items-start gap-3">
                   <div className="p-2 bg-blue-100 text-blue-700 rounded-full"><Target size={16}/></div>
                   <div>
-                    <h4 className="text-[10px] font-black uppercase text-slate-800 tracking-widest mb-0.5">Ratio de Ahorro ({fPct(savingsRate)})</h4>
+                    <h4 className="text-[10px] font-black uppercase text-slate-800 tracking-widest mb-0.5">Ratio de Ahorro ({savingsRate.toFixed(1)}%)</h4>
                     <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
                       {savingsRate >= 20 ? "Operación eficiente. Margen de liquidez superior al 20% recomendado." : "Margen de liquidez bajo. Se requiere optimización de la estructura de costos."}
                     </p>
@@ -328,7 +353,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                   <div>
                     <h4 className="text-[10px] font-black uppercase text-slate-800 tracking-widest mb-0.5">Riesgo de Apalancamiento</h4>
                     <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
-                      {totalLiabilities === 0 ? "Estructura de capital 100% propia. Riesgo de insolvencia nulo." : `Exposición a pasivos equivalente al ${fPct((totalLiabilities/totalAssets)*100)} del total de activos.`}
+                      {totalLiabilities === 0 ? "Estructura de capital 100% propia. Riesgo de insolvencia nulo." : `Exposición a pasivos equivalente al ${((totalLiabilities/totalAssets)*100 || 0).toFixed(1)}% del total de activos.`}
                     </p>
                   </div>
                 </div>
@@ -351,7 +376,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
 
 const KPICard = ({ title, value, subtitle, icon, highlight = false }: { title: string, value: string, subtitle: string, icon: any, highlight?: boolean }) => (
   <div className="flex flex-col items-center text-center p-4">
-    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${highlight ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-50 text-blue-900'} border border-slate-200`}>
+    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${highlight ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-900 border-slate-200'} border`}>
       {icon}
     </div>
     <p className={`text-2xl font-black tracking-tighter mb-1 ${highlight ? 'text-emerald-600' : 'text-slate-900'}`}>{value}</p>

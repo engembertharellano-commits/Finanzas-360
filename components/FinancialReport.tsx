@@ -30,14 +30,11 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
   exchangeRate = 1,
   selectedMonth
 }) => {
-  // --- ESTILOS DE IMPRESIÓN BLINDADOS ---
-  // Este CSS aísla el reporte del resto de la app y fuerza la impresión a color
+  // --- ESTILOS DE IMPRESIÓN REPARADOS Y SIN MÁRGENES MUERTOS ---
   const printStyles = `
     @media print {
       @page { size: A4 portrait; margin: 0; }
-      body * { 
-        visibility: hidden; 
-      }
+      body * { visibility: hidden; }
       #report-core-container, #report-core-container * { 
         visibility: visible; 
         -webkit-print-color-adjust: exact !important; 
@@ -45,11 +42,11 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
       }
       #report-core-container {
         position: absolute;
-        left: 50%;
+        left: 0;
         top: 0;
-        transform: translateX(-50%);
         width: 210mm !important;
-        margin: 0 !important;
+        min-height: 297mm !important;
+        margin: 0 auto !important;
         padding: 10mm !important;
         background-color: white !important;
         box-shadow: none !important;
@@ -76,14 +73,13 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { netWorth: assets - liabilities };
   }, [accounts, investments, exchangeRate]);
 
-  // 2. FONDO DE EMERGENCIA
+  // 2. Fondo de Emergencia
   const emergencyFund = useMemo(() => {
     const fundAcc = accounts.find(a => a.name.toLowerCase().includes('emergencia'));
-    if (!fundAcc) return { current: 0 };
-    return { current: toUSD(fundAcc.balance, fundAcc.currency) };
+    return { current: fundAcc ? toUSD(fundAcc.balance, fundAcc.currency) : 0 };
   }, [accounts, exchangeRate]);
 
-  // 3. Flujos del Mes y FLUJO DE CAJA
+  // 3. Flujos y Flujo de Caja
   const { income, expenses, savingsRate, cashFlow } = useMemo(() => {
     let inc = 0, exp = 0;
     transactions.filter(t => t?.date?.startsWith(selectedMonth)).forEach(t => {
@@ -94,7 +90,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { income: inc, expenses: exp, savingsRate: inc > 0 ? ((inc - exp) / inc) * 100 : 0, cashFlow: inc - exp };
   }, [transactions, selectedMonth, exchangeRate]);
 
-  // 4. Gráficos Históricos Operativos (6 Meses)
+  // 4. Histórico 6 Meses
   const history6Months = useMemo(() => {
     if (!selectedMonth) return [];
     const [year, month] = selectedMonth.split('-').map(Number);
@@ -113,7 +109,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return monthsData;
   }, [selectedMonth, transactions, exchangeRate]);
 
-  // 5. Inversiones (ROI Real)
+  // 5. Inversiones
   const assetBreakdown = useMemo(() => {
     return investments.map(inv => {
       const cost = toUSD(inv.initialInvestment || (inv.quantity * inv.buyPrice) || 0, inv.currency);
@@ -132,7 +128,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
       cats[inv.category || 'Otros'] = (cats[inv.category || 'Otros'] || 0) + valUSD;
       total += valUSD;
     });
-    const colors = ['#1e3a8a', '#3b82f6', '#93c5fd', '#10b981', '#f59e0b'];
+    const colors = ['#0f172a', '#3b82f6', '#93c5fd', '#10b981', '#f59e0b'];
     let currentDegree = 0;
     const segments = Object.entries(cats).sort((a,b) => b[1]-a[1]).map(([name, val], i) => {
       const perc = total > 0 ? (val/total)*100 : 0;
@@ -143,7 +139,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { segments, total, conicGradient: segments.length > 0 ? segments.map(s => `${s.color} ${s.start}deg ${s.end}deg`).join(', ') : '#e2e8f0 0deg 360deg' };
   }, [investments, exchangeRate]);
 
-  // 7. Análisis de Gastos Mayores (Top 5)
+  // 7. Gastos Top 5
   const spendingTable = useMemo(() => {
     const cats: Record<string, number> = {};
     transactions.filter(t => t?.date?.startsWith(selectedMonth) && t.type === 'Gasto').forEach(t => {
@@ -152,28 +148,26 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return Object.entries(cats).sort((a,b) => b[1]-a[1]).slice(0, 5);
   }, [transactions, selectedMonth, exchangeRate]);
 
-  // --- FORMATEADORES SEGUROS ---
   const fUSD = (v: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v || 0);
   const fPct = (v: number) => isNaN(v) ? '0.0%' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%`;
 
-  const [year, month] = selectedMonth ? selectedMonth.split('-') : [new Date().getFullYear().toString(), (new Date().getMonth() + 1).toString()];
-  const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  const displayDate = `${meses[parseInt(month) - 1]} ${year}`;
+  const displayDate = useMemo(() => {
+    const [year, month] = selectedMonth.split('-');
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    return `${meses[parseInt(month) - 1]} ${year}`;
+  }, [selectedMonth]);
 
   return (
     <>
       <style>{printStyles}</style>
-      
-      {/* Fondo exterior de la pantalla web */}
-      <div className="bg-slate-100 min-h-screen py-6 md:py-10 flex justify-center w-full">
+      <div className="bg-slate-100 min-h-screen py-4 md:py-8 flex justify-center w-full no-print">
         
-        {/* CONTENEDOR PRINCIPAL DEL REPORTE (Aislado para imprimir) */}
-        <div id="report-core-container" className="relative w-full max-w-[210mm] bg-white shadow-2xl overflow-hidden font-sans text-slate-800 border border-slate-200">
+        <div id="report-core-container" className="relative w-full max-w-[210mm] bg-white shadow-2xl font-sans text-slate-800 border border-slate-200">
           
-          {/* HEADER CORPORATIVO SÓLIDO AZUL OSCURO */}
-          <div className="bg-slate-900 text-white px-10 py-8 flex justify-between items-center relative z-10 print-break-avoid border-b border-slate-800" style={{ backgroundColor: '#0f172a' }}>
+          {/* HEADER */}
+          <div className="bg-slate-900 text-white px-10 py-8 flex justify-between items-center relative z-10 border-b border-slate-800" style={{ backgroundColor: '#0f172a' }}>
             <div className="flex items-center gap-6">
-              <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg border border-blue-700 no-print" style={{ backgroundColor: '#2563eb' }}>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg border border-blue-700 no-print" style={{ backgroundColor: '#2563eb' }}>
                 <Building2 size={28} className="text-white" />
               </div>
               <div>
@@ -181,45 +175,45 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                 <p className="text-blue-400 font-bold text-xs mt-1 uppercase tracking-widest">{displayDate}</p>
               </div>
             </div>
-            <button onClick={() => window.print()} className="no-print text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-lg flex items-center gap-2" style={{ backgroundColor: '#2563eb' }}>
+            <button onClick={() => window.print()} className="no-print text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg flex items-center gap-2" style={{ backgroundColor: '#2563eb' }}>
               <Download size={16} /> Exportar
             </button>
           </div>
 
-          <div className="p-10 space-y-12 relative z-10 bg-white">
+          <div className="p-10 space-y-12 bg-white relative z-10">
             
-            {/* SECCIÓN 1: KPIs Principales */}
-            <div className="grid grid-cols-4 gap-6 print-break-avoid border-b border-slate-200 pb-10">
+            {/* SECCIÓN 1: KPIs */}
+            <div className="grid grid-cols-4 gap-4 print-break-avoid border-b border-slate-100 pb-10">
               <KPICol title="Patrimonio Neto" value={fUSD(netWorth)} desc="Total activos" color="#1e3a8a" icon={<Briefcase size={20}/>} />
               <KPICol title="Ingresos" value={fUSD(income)} desc="Entradas operativas" color="#059669" icon={<TrendingUp size={20}/>} />
               <KPICol title="Gastos" value={fUSD(expenses)} desc="Salidas operativas" color="#e11d48" icon={<TrendingDown size={20}/>} />
               <KPICol title="Flujo de Caja" value={fUSD(cashFlow)} desc="Saldo del periodo" color={cashFlow >= 0 ? "#0d9488" : "#e11d48"} icon={<Activity size={20}/>} highlight={cashFlow > 0} />
             </div>
 
-            {/* SECCIÓN 2: BALANCE OPERATIVO HISTÓRICO CON BARRAS ESTRICTAS EN LÍNEA */}
-            <div className="print-break-avoid bg-slate-50 border border-slate-100 p-8 rounded-3xl" style={{ backgroundColor: '#f8fafc' }}>
+            {/* SECCIÓN 2: COMPARACIÓN DE FLUJO DE CAJA (BARRAS ESTRICTAS EN LÍNEA) */}
+            <div className="print-break-avoid border border-slate-100 p-8 rounded-3xl" style={{ backgroundColor: '#f8fafc' }}>
               <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-14 text-center">Comparación de Flujo de Caja (6 Meses)</h2>
-              <div className="flex items-end justify-center gap-6 h-48 w-full relative px-4 md:px-10">
-                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8 opacity-20 px-10">
+              <div className="flex items-end justify-center gap-4 md:gap-8 h-48 w-full relative px-2">
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8 opacity-20">
                   {[0,1,2,3].map(i => <div key={i} className="w-full border-t border-slate-400 border-dashed h-0" />)}
                 </div>
                 {history6Months.map((m, i) => {
                   const max = Math.max(...history6Months.map(x => Math.max(x.income, x.expenses))) || 1;
                   return (
                     <div key={i} className="flex-1 flex flex-col items-center justify-end h-full relative z-10">
-                      <div className="flex items-end gap-1.5 w-full justify-center h-full pb-8">
-                        {/* Barra Ingresos - Azul Oscuro forzado */}
-                        <div className="flex flex-col items-center flex-1 w-full max-w-[24px]">
-                          <span className="text-[7px] md:text-[8px] font-black text-slate-900 mb-1">{m.income > 0 ? fUSD(m.income) : ''}</span>
-                          <div className="w-full rounded-t-sm shadow-md" style={{ height: `${Math.max((m.income/max)*100, 2)}%`, backgroundColor: '#0f172a' }} />
+                      <div className="flex items-end gap-1 w-full justify-center h-full pb-8">
+                        {/* Ingresos (Azul Oscuro) */}
+                        <div className="flex flex-col items-center justify-end h-full w-full max-w-[24px]">
+                          <span className="text-[7px] font-black text-slate-900 mb-1">{m.income > 0 ? fUSD(m.income) : ''}</span>
+                          <div style={{ height: `${Math.max((m.income/max)*100, 1)}%`, backgroundColor: '#0f172a', width: '100%', borderRadius: '4px 4px 0 0' }} />
                         </div>
-                        {/* Barra Gastos - Rojo forzado */}
-                        <div className="flex flex-col items-center flex-1 w-full max-w-[24px]">
-                          <span className="text-[7px] md:text-[8px] font-black text-rose-600 mb-1">{m.expenses > 0 ? fUSD(m.expenses) : ''}</span>
-                          <div className="w-full rounded-t-sm shadow-md" style={{ height: `${Math.max((m.expenses/max)*100, 2)}%`, backgroundColor: '#e11d48' }} />
+                        {/* Gastos (Rojo) */}
+                        <div className="flex flex-col items-center justify-end h-full w-full max-w-[24px]">
+                          <span className="text-[7px] font-black text-rose-600 mb-1">{m.expenses > 0 ? fUSD(m.expenses) : ''}</span>
+                          <div style={{ height: `${Math.max((m.expenses/max)*100, 1)}%`, backgroundColor: '#e11d48', width: '100%', borderRadius: '4px 4px 0 0' }} />
                         </div>
                       </div>
-                      <span className="absolute bottom-0 text-[9px] md:text-[10px] font-bold text-slate-500 uppercase whitespace-nowrap">{m.label}</span>
+                      <span className="absolute bottom-0 text-[8px] md:text-[10px] font-black text-slate-500 uppercase whitespace-nowrap">{m.label}</span>
                     </div>
                   );
                 })}
@@ -235,12 +229,12 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               <div className="col-span-3 space-y-6">
                 <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest flex items-center gap-2"><TrendingUp size={16} className="text-blue-600"/> Rendimiento de Activos (ROI Real)</h2>
                 
-                <div className="h-56 border border-slate-100 bg-slate-50 p-6 flex items-end justify-around gap-4 relative shadow-sm rounded-xl" style={{ backgroundColor: '#f8fafc' }}>
+                <div className="h-56 border border-slate-100 p-6 flex items-end justify-around gap-4 relative shadow-sm rounded-xl" style={{ backgroundColor: '#f8fafc' }}>
                   {assetBreakdown.slice(0, 5).map((inv, i) => {
                     const max = Math.max(...assetBreakdown.map(x => Math.max(x.cost, x.current))) || 1;
                     return (
                       <div key={i} className="flex-1 flex flex-col items-center justify-end h-full z-10 w-full group">
-                        <div className="flex items-end gap-1 w-full justify-center flex-1 pb-0 group-hover:pb-1 transition-all">
+                        <div className="flex items-end gap-1 w-full justify-center h-full pb-0 group-hover:pb-1 transition-all">
                           {/* Barra Inversión (Gris) */}
                           <div className="w-4 rounded-t-sm" title="Capital Invertido" style={{ height: `${Math.max((inv.cost/max)*100, 2)}%`, backgroundColor: '#cbd5e1' }} />
                           {/* Barra Valor (Azul) */}
@@ -282,7 +276,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
 
               <div className="col-span-2 space-y-6">
                 <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest flex items-center gap-2"><PieChart size={16} className="text-blue-600"/> Distribución de Capital</h2>
-                <div className="aspect-square bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center relative shadow-inner" style={{ backgroundColor: '#f8fafc' }}>
+                <div className="aspect-square border border-slate-100 rounded-full flex items-center justify-center relative shadow-inner" style={{ backgroundColor: '#f8fafc' }}>
                   <div className="w-48 h-48 rounded-full" style={{ background: `conic-gradient(${portfolioData.conicGradient})` }} />
                   <div className="absolute w-32 h-32 bg-white rounded-full flex flex-col items-center justify-center shadow-xl border border-slate-50">
                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Valuación Total</span>
@@ -300,7 +294,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               </div>
             </div>
 
-            {/* SECCIÓN 4: GASTOS MAYORES Y PROYECCIONES */}
+            {/* SECCIÓN 4: GASTOS MAYORES Y PROYECCIONES (RESTAURADOS) */}
             <div className="grid grid-cols-2 gap-10 print-break-avoid pt-10 border-t border-slate-200">
               <div>
                 <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-6 flex items-center gap-2"><BarChart2 size={16} className="text-blue-600"/> Gastos Mayores (Top 5)</h2>
@@ -332,7 +326,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
 
               <div className="space-y-6">
                 <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-2 flex items-center gap-2"><Zap size={16} className="text-blue-600"/> Proyección a 6 Meses</h2>
-                <div className="bg-slate-50 border border-slate-100 p-6 rounded-2xl space-y-3" style={{ backgroundColor: '#f8fafc' }}>
+                <div className="border border-slate-100 p-6 rounded-2xl space-y-3" style={{ backgroundColor: '#f8fafc' }}>
                   <div className="flex justify-between items-center p-3.5 bg-white border border-slate-100 rounded-xl shadow-sm">
                     <span className="text-[10px] font-bold text-slate-500 uppercase">Escenario Base</span>
                     <span className="text-xs font-black text-slate-900">{fUSD(netWorth + (cashFlow * 6))}</span>
@@ -370,7 +364,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
           </div>
 
           <div className="text-white/50 text-center py-4 text-[7px] uppercase tracking-[0.4em] font-black italic border-t border-slate-800" style={{ backgroundColor: '#0f172a' }}>
-            Documento Confidencial • Generado Automáticamente • Finanza360
+            Documento Confidencial • Generado Automáticamente por Finanza360
           </div>
         </div>
       </div>
@@ -379,13 +373,13 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
 };
 
 const KPICol = ({ title, value, desc, color, icon, highlight = false }: any) => (
-  <div className="text-center p-4 border border-transparent hover:border-slate-100 hover:bg-slate-50 transition-all rounded-2xl">
-    <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 text-white shadow-lg" style={{ backgroundColor: color }}>
+  <div className="text-center p-2 border border-transparent hover:border-slate-100 hover:bg-slate-50 transition-all rounded-2xl">
+    <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-white shadow-lg" style={{ backgroundColor: color }}>
       {icon}
     </div>
     <p className={`text-2xl font-black tracking-tighter ${highlight ? 'text-teal-600' : 'text-slate-900'}`}>{value}</p>
     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5">{title}</h3>
-    <p className="text-[9px] text-slate-400 font-bold mt-1 uppercase leading-tight">{desc}</p>
+    <p className="text-[8px] text-slate-400 font-bold mt-0.5 uppercase leading-tight">{desc}</p>
   </div>
 );
 

@@ -10,7 +10,8 @@ import {
   Briefcase,
   PieChart,
   BarChart2,
-  Building2
+  Building2,
+  Target // <-- AQUÍ ESTABA EL ERROR: Faltaba importar este ícono
 } from 'lucide-react';
 import { BankAccount, Transaction, Investment, FinancialPlan } from '../types';
 
@@ -64,10 +65,10 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { totalAssets: assets, totalLiabilities: liabilities, netWorth: assets - liabilities };
   }, [accounts, investments, exchangeRate]);
 
-  // 2. Flujo del Mes Seleccionado
+  // 2. Flujo del Mes Seleccionado (Con validación de fecha segura)
   const { income, expenses, cashFlow, savingsRate } = useMemo(() => {
     let inc = 0, exp = 0;
-    transactions.filter(t => t.date.startsWith(selectedMonth)).forEach(t => {
+    transactions.filter(t => t?.date?.startsWith(selectedMonth)).forEach(t => {
       const val = toUSD(t.amount, t.currency);
       if (t.type === 'Ingreso') inc += val;
       if (t.type === 'Gasto') exp += val;
@@ -77,6 +78,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
 
   // 3. Generación Histórica (Últimos 6 meses) para Gráficos
   const history6Months = useMemo(() => {
+    if (!selectedMonth) return [];
     const [year, month] = selectedMonth.split('-').map(Number);
     const monthsData = [];
     const mesesAbrev = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -87,7 +89,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
       const label = `${mesesAbrev[d.getMonth()]} ${d.getFullYear().toString().slice(2)}`;
       
       let inc = 0, exp = 0;
-      transactions.filter(t => t.date.startsWith(targetMonth)).forEach(t => {
+      transactions.filter(t => t?.date?.startsWith(targetMonth)).forEach(t => {
         const val = toUSD(t.amount, t.currency);
         if (t.type === 'Ingreso') inc += val;
         if (t.type === 'Gasto') exp += val;
@@ -102,12 +104,9 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
   // 4. Evolución de Inversiones (Simulada/Agrupada para el gráfico mensual)
   const investmentHistory = useMemo(() => {
     const currentPortfolioValue = investments.reduce((acc, inv) => acc + toUSD(inv.value || inv.currentValue || (inv.quantity * (inv.currentMarketPrice || inv.buyPrice)) || 0, inv.currency), 0);
-    // Para no dejar la gráfica vacía, reconstruimos el valor del portafolio en los últimos 6 meses.
-    // Si no hay transacciones de inversión viejas, asumimos un crecimiento lineal leve visual.
     let runningValue = currentPortfolioValue;
-    const history = [...history6Months].reverse().map((m, i) => {
+    const history = [...history6Months].reverse().map((m) => {
       const val = runningValue;
-      // Simulamos que el portafolio era un poco menor en meses pasados basados en el ahorro o un 2% mensual.
       runningValue = runningValue - (m.net > 0 ? m.net * 0.2 : currentPortfolioValue * 0.02);
       if (runningValue < 0) runningValue = 0;
       return { label: m.label, value: val };
@@ -140,10 +139,10 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
   // 6. Análisis de Gastos (Tabla)
   const spendingTable = useMemo(() => {
     const cats: Record<string, number> = {};
-    transactions.filter(t => t.date.startsWith(selectedMonth) && t.type === 'Gasto').forEach(t => {
+    transactions.filter(t => t?.date?.startsWith(selectedMonth) && t.type === 'Gasto').forEach(t => {
       cats[t.category] = (cats[t.category] || 0) + toUSD(t.amount, t.currency);
     });
-    return Object.entries(cats).sort((a,b) => b[1]-a[1]).slice(0, 5); // Top 5
+    return Object.entries(cats).sort((a,b) => b[1]-a[1]).slice(0, 5);
   }, [transactions, selectedMonth, exchangeRate]);
 
   // --- FORMATEADORES ---
@@ -161,7 +160,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
       {/* CONTENEDOR PRINCIPAL TIPO A4 */}
       <div className="print-container max-w-[210mm] mx-auto bg-white shadow-2xl overflow-hidden font-sans text-slate-800 border border-slate-200">
         
-        {/* HEADER CORPORATIVO (ESTILO IMAGEN 40) */}
+        {/* HEADER CORPORATIVO */}
         <div className="bg-blue-900 text-white px-10 py-8 flex justify-between items-center print-break-avoid">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center border border-white/20">
@@ -193,27 +192,23 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
             <KPICard title="Flujo de Caja Neto" value={fUSD(cashFlow)} subtitle="Balance del periodo" icon={<Activity size={20}/>} highlight={cashFlow >= 0} />
           </div>
 
-          {/* SECCIÓN 2: GRÁFICOS HISTÓRICOS (ESTILO IMAGEN 40) */}
+          {/* SECCIÓN 2: GRÁFICOS HISTÓRICOS */}
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 print-break-avoid">
             <h2 className="text-sm font-black text-blue-900 uppercase tracking-widest text-center mb-8 border-b border-slate-200 pb-4">
               Comparación de Métricas Financieras (Últimos 6 Meses)
             </h2>
             
             <div className="flex items-end justify-center gap-6 h-56 w-full relative px-10">
-              {/* Leyenda Y / Grid */}
               <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8 opacity-20 px-10">
                 {[0,1,2,3,4].map(i => <div key={i} className="w-full border-t border-slate-400 border-dashed h-0" />)}
               </div>
 
-              {/* Barras Agrupadas */}
               {history6Months.map((m, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center justify-end h-full relative z-10">
                   <div className="flex items-end gap-1.5 w-full justify-center h-full pb-8">
-                    {/* Barra Ingresos */}
                     <div className="w-full max-w-[24px] bg-blue-900 rounded-t-sm transition-all relative group" style={{height: `${Math.max((m.income / maxHistoryValue) * 100, 2)}%`}}>
                       <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[8px] font-bold text-blue-900 opacity-0 group-hover:opacity-100 no-print bg-white px-1 shadow-sm rounded">{fUSD(m.income)}</span>
                     </div>
-                    {/* Barra Gastos */}
                     <div className="w-full max-w-[24px] bg-blue-400 rounded-t-sm transition-all relative group" style={{height: `${Math.max((m.expenses / maxHistoryValue) * 100, 2)}%`}}>
                       <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[8px] font-bold text-blue-500 opacity-0 group-hover:opacity-100 no-print bg-white px-1 shadow-sm rounded">{fUSD(m.expenses)}</span>
                     </div>
@@ -232,7 +227,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
           {/* SECCIÓN 3: TABLA DE DATOS Y PORTAFOLIO */}
           <div className="grid grid-cols-2 gap-8 print-break-avoid">
             
-            {/* Tabla Estructurada (Estilo Imagen 40) */}
+            {/* Tabla Estructurada */}
             <div>
               <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <BarChart2 size={16}/> Resumen de Gastos Mayores
@@ -265,7 +260,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               </table>
             </div>
 
-            {/* Evolución de Inversiones (Barras Simples Mensuales) */}
+            {/* Evolución de Inversiones */}
             <div>
               <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <TrendingUp size={16}/> Crecimiento de Inversiones (6 Meses)
@@ -288,7 +283,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
           {/* SECCIÓN 4: DONUT Y ALERTAS */}
           <div className="grid grid-cols-2 gap-8 print-break-avoid border-t border-slate-200 pt-8">
             
-            {/* Donut Chart (Estilo Imagen 39) */}
+            {/* Donut Chart */}
             <div className="flex flex-col">
               <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-6 flex items-center gap-2">
                 <PieChart size={16}/> Distribución del Portafolio Activo

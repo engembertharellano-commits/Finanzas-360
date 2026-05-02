@@ -14,8 +14,7 @@ import {
   Briefcase,
   Users,
   UserX,
-  Target,
-  BarChart // NUEVO: Ícono para el reporte
+  Target
 } from 'lucide-react';
 
 import {
@@ -43,7 +42,6 @@ import { Auth } from './components/Auth';
 import { FinanceAIService } from './services/geminiService';
 import { FinancialPlanning } from './components/planning/FinancialPlanning';
 import IngresosModule from './components/IngresosModule';
-import { FinancialReport } from './components/FinancialReport'; // NUEVO: Importación del módulo
 
 type View =
   | 'dashboard'
@@ -56,8 +54,7 @@ type View =
   | 'settings'
   | 'work'
   | 'custody'
-  | 'planning'
-  | 'report'; // NUEVO: Tipo de vista
+  | 'planning';
 
 type PersistedFinanceData = {
   accounts: BankAccount[];
@@ -767,18 +764,6 @@ const App: React.FC = () => {
               label="Análisis Inteligente"
               isSpecial
             />
-            
-            {/* NUEVO ITEM: Informe Financiero */}
-            <NavItem
-              active={activeView === 'report'}
-              onClick={() => {
-                setActiveView('report');
-                setIsMobileMenuOpen(false);
-              }}
-              icon={<BarChart size={20} />}
-              label="Informe Financiero"
-            />
-
             <div className="h-px bg-slate-100 my-4 mx-2"></div>
             <NavItem
               active={activeView === 'accounts'}
@@ -947,19 +932,6 @@ const App: React.FC = () => {
                 isSyncingRate={isSyncingRate}
               />
             )}
-            
-            {/* NUEVO COMPONENTE: Financial Report */}
-            {activeView === 'report' && (
-              <FinancialReport
-                accounts={accounts}
-                transactions={transactions}
-                investments={investments}
-                exchangeRate={exchangeRate}
-                selectedMonth={selectedMonth}
-                financialPlans={financialPlans}
-              />
-            )}
-
             {activeView === 'accounts' && (
               <AccountsList 
                 accounts={accounts} 

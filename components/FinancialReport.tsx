@@ -31,7 +31,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
   exchangeRate,
   selectedMonth
 }) => {
-  // --- INYECCIÓN DE ESTILOS PARA IMPRESIÓN A4 CORPORATIVA (MULTIPÁGINA) ---
+  // --- ESTILOS DE IMPRESIÓN ---
   const printStyles = `
     @media print {
       @page { size: A4 portrait; margin: 0; }
@@ -41,32 +41,57 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
         background-color: white !important;
       }
       .no-print { display: none !important; }
-      .print-container { width: 210mm !important; min-height: 297mm !important; margin: 0 auto !important; padding: 10mm !important; box-shadow: none !important; }
+      .print-container { width: 210mm !important; min-height: 297mm !important; margin: 0 auto !important; padding: 10mm !important; box-shadow: none !important; border: none !important; }
       .print-break-avoid { break-inside: avoid; page-break-inside: avoid; }
     }
   `;
 
-  // --- LÓGICA DE DATOS ---
   const toUSD = (amount: number, currency: string) => currency === 'VES' ? amount / exchangeRate : amount;
 
-  // 1. Patrimonio y Beneficio
-  const { totalProfit, totalInvested, netWorth, totalAssets, totalLiabilities } = useMemo(() => {
-    let assets = 0, liabilities = 0, costBasis = 0;
+  // 1. Patrimonio Actual (HOY)
+  const { netWorth, totalAssets, totalLiabilities } = useMemo(() => {
+    let assets = 0, liabilities = 0;
     accounts.forEach(acc => {
       const val = toUSD(acc.balance, acc.currency);
       if (acc.type === 'Tarjeta de Crédito' && val < 0) liabilities += Math.abs(val);
+      else if (acc.type === 'Tarjeta de Crédito' && val >= 0) assets += val;
       else assets += val;
     });
     investments.forEach(inv => {
-      const currentVal = toUSD(inv.value || inv.currentValue || (inv.quantity * (inv.currentMarketPrice || inv.buyPrice)) || 0, inv.currency);
-      const cost = toUSD(inv.initialInvestment || (inv.quantity * inv.buyPrice) || 0, inv.currency);
-      assets += currentVal;
-      costBasis += cost;
+      const val = toUSD(inv.value || inv.currentValue || (inv.quantity * (inv.currentMarketPrice || inv.buyPrice)) || 0, inv.currency);
+      assets += val;
     });
-    return { totalProfit: assets - liabilities - costBasis, totalInvested: costBasis, netWorth: assets - liabilities, totalAssets: assets, totalLiabilities: liabilities };
+    return { totalAssets: assets, totalLiabilities: liabilities, netWorth: assets - liabilities };
   }, [accounts, investments, exchangeRate]);
 
-  // 2. Flujo del Mes
+  // 2. PATRIMONIO RETROACTIVO (Dinero exacto al cierre del mes seleccionado)
+  const endOfMonthNW = useMemo(() => {
+    if (!selectedMonth) return netWorth;
+    const [selYear, selMonth] = selectedMonth.split('-').map(Number);
+
+    let futureNetCashFlow = 0;
+    transactions.forEach(t => {
+      if (!t.date) return;
+      const [tYear, tMonth] = t.date.split('-').map(Number);
+      
+      // Verificamos si la transacción ocurrió DESPUÉS del mes que estamos consultando
+      const isAfter = tYear > selYear || (tYear === selYear && tMonth > selMonth);
+      
+      if (isAfter) {
+        const val = toUSD(t.amount, t.currency);
+        if (t.type === 'Ingreso') futureNetCashFlow += val;
+        if (t.type === 'Gasto') futureNetCashFlow -= val;
+        if (t.type === 'Ajuste') {
+          const adj = t.adjustmentDirection === 'minus' ? -val : val;
+          futureNetCashFlow += adj;
+        }
+      }
+    });
+    // Al patrimonio actual le restamos el dinero que ganamos/perdimos en el futuro
+    return netWorth - futureNetCashFlow;
+  }, [selectedMonth, transactions, netWorth, exchangeRate]);
+
+  // 3. Flujo del Mes Seleccionado
   const { income, expenses, cashFlow, savingsRate } = useMemo(() => {
     let inc = 0, exp = 0;
     transactions.filter(t => t?.date?.startsWith(selectedMonth)).forEach(t => {
@@ -77,14 +102,13 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { income: inc, expenses: exp, cashFlow: inc - exp, savingsRate: inc > 0 ? ((inc - exp) / inc) * 100 : 0 };
   }, [transactions, selectedMonth, exchangeRate]);
 
-  const beneficioEconomicoReal = cashFlow + totalProfit;
-
-  // 3. Histórico 6 meses
+  // 4. Histórico 6 meses (Para gráfica operativa)
   const history6Months = useMemo(() => {
     if (!selectedMonth) return [];
     const [year, month] = selectedMonth.split('-').map(Number);
     const monthsData = [];
     const mesesAbrev = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
     for (let i = 5; i >= 0; i--) {
       const d = new Date(year, month - 1 - i, 1);
       const targetMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -101,23 +125,25 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
 
   const maxHistoryValue = Math.max(...history6Months.map(m => Math.max(m.income, m.expenses))) || 1;
 
-  // 4. Desglose detallado de Inversiones (ROI Real)
+  // 5. Rendimiento Real de Inversiones (ROI Real) - AHORA CORREGIDO
   const assetBreakdown = useMemo(() => {
     return investments.map(inv => {
       const cost = toUSD(inv.initialInvestment || (inv.quantity * inv.buyPrice) || 0, inv.currency);
       const current = toUSD(inv.value || inv.currentValue || (inv.quantity * (inv.currentMarketPrice || inv.buyPrice)) || 0, inv.currency);
+      const profit = current - cost;
       return {
         name: inv.ticker || inv.name || 'S/N',
         cost,
         current,
-        roi: cost > 0 ? ((current - cost) / cost) * 100 : 0
+        roi: cost > 0 ? (profit / cost) * 100 : 0
       };
     }).sort((a, b) => b.current - a.current);
   }, [investments, exchangeRate]);
 
   const maxInvestValue = Math.max(...assetBreakdown.map(i => Math.max(i.cost, i.current))) || 1;
+  const totalInvested = assetBreakdown.reduce((acc, inv) => acc + inv.cost, 0);
 
-  // 5. Portafolio Donut
+  // 6. Portafolio Donut
   const portfolioData = useMemo(() => {
     const cats: Record<string, number> = {};
     let total = 0;
@@ -137,13 +163,13 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { segments, total, conicGradient: segments.length > 0 ? segments.map(s => `${s.color} ${s.start}deg ${s.end}deg`).join(', ') : '#e2e8f0 0deg 360deg' };
   }, [investments, exchangeRate]);
 
-  // 6. Análisis de Gastos (Tabla RESTAURADA)
+  // 7. Análisis de Gastos Mayores
   const spendingTable = useMemo(() => {
     const cats: Record<string, number> = {};
     transactions.filter(t => t?.date?.startsWith(selectedMonth) && t.type === 'Gasto').forEach(t => {
       cats[t.category] = (cats[t.category] || 0) + toUSD(t.amount, t.currency);
     });
-    return Object.entries(cats).sort((a,b) => b[1]-a[1]).slice(0, 5); // Top 5
+    return Object.entries(cats).sort((a,b) => b[1]-a[1]).slice(0, 5);
   }, [transactions, selectedMonth, exchangeRate]);
 
   // --- FORMATEADORES ---
@@ -153,6 +179,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
   const [year, month] = selectedMonth.split('-');
   const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const displayDate = `${meses[parseInt(month) - 1]} ${year}`;
+  const isCurrentMonth = new Date().toISOString().startsWith(selectedMonth);
 
   return (
     <>
@@ -162,7 +189,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
         {/* HEADER */}
         <div className="bg-blue-900 text-white px-10 py-8 flex justify-between items-center print-break-avoid">
           <div className="flex items-center gap-4">
-            <Building2 size={32} />
+            <Building2 size={32} className="text-white" />
             <div>
               <h1 className="text-3xl font-black tracking-tight uppercase">Reporte General de Desempeño</h1>
               <p className="text-blue-200 font-bold text-xs mt-1 uppercase tracking-widest">Periodo: {displayDate}</p>
@@ -175,12 +202,33 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
 
         <div className="p-10 space-y-12">
           
-          {/* SECCIÓN 1: KPIs */}
+          {/* SECCIÓN 1: KPIs PRINCIPALES (REESTRUCTURADOS) */}
           <div className="grid grid-cols-4 gap-6 border-b border-slate-200 pb-10 print-break-avoid">
-            <KPICard title="Beneficio Económico" value={fUSD(beneficioEconomicoReal)} subtitle="Valor Neto Generado" icon={<TrendingUp size={20}/>} highlight={beneficioEconomicoReal >= 0} />
-            <KPICard title="Patrimonio Neto" value={fUSD(netWorth)} subtitle="Balance de Activos" icon={<Briefcase size={20}/>} />
-            <KPICard title="Tasa de Ahorro" value={fPct(savingsRate).replace('+','')} subtitle="Eficiencia Mensual" icon={<Target size={20}/>} />
-            <KPICard title="Flujo de Caja" value={fUSD(cashFlow)} subtitle="Saldo del Periodo" icon={<Activity size={20}/>} highlight={cashFlow >= 0} />
+            <KPICard 
+              title="Patrimonio (Cierre de Mes)" 
+              value={fUSD(endOfMonthNW)} 
+              subtitle={isCurrentMonth ? "Balance Total Actual" : "Balance Calculado a la Fecha"} 
+              icon={<Briefcase size={20}/>} 
+            />
+            <KPICard 
+              title="Ingresos Operativos" 
+              value={fUSD(income)} 
+              subtitle="Entradas del Mes" 
+              icon={<TrendingUp size={20}/>} 
+            />
+            <KPICard 
+              title="Gastos Operativos" 
+              value={fUSD(expenses)} 
+              subtitle="Salidas del Mes" 
+              icon={<TrendingDown size={20}/>} 
+            />
+            <KPICard 
+              title="Flujo de Caja Neto" 
+              value={fUSD(cashFlow)} 
+              subtitle="Saldo del Periodo" 
+              icon={<Activity size={20}/>} 
+              highlight={cashFlow >= 0} 
+            />
           </div>
 
           {/* SECCIÓN 2: BALANCE OPERATIVO HISTÓRICO */}
@@ -206,19 +254,27 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
             </div>
           </div>
 
-          {/* SECCIÓN 3: RENDIMIENTO DE INVERSIONES DETALLADO */}
+          {/* SECCIÓN 3: RENDIMIENTO DE INVERSIONES Y PORTAFOLIO */}
           <div className="grid grid-cols-5 gap-8 print-break-avoid border-t border-slate-200 pt-10">
             <div className="col-span-3">
               <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-6 flex items-center gap-2"><TrendingUp size={16}/> Rendimiento de Activos (ROI Real)</h2>
-              <div className="border border-slate-200 p-8 flex items-end justify-around gap-4 h-48 mb-6 bg-slate-50/50">
+              
+              {/* GRÁFICO DE BARRAS DE INVERSIÓN (PROPORCIONADO) */}
+              <div className="border border-slate-200 p-6 flex items-end justify-around gap-4 h-56 mb-8 bg-white relative">
+                <div className="absolute inset-0 flex flex-col justify-between py-8 px-6 opacity-20 pointer-events-none">
+                  {[0,1,2,3,4].map(i => <div key={i} className="w-full border-t border-slate-400 border-dashed" />)}
+                </div>
                 {assetBreakdown.slice(0, 5).map((inv, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center justify-end h-full relative group">
-                    <div className="flex items-end gap-1 w-full justify-center h-full pb-6">
-                      <div className="w-4 bg-slate-300" title="Costo" style={{height: `${(inv.cost / maxInvestValue) * 100}%`}} />
-                      <div className="w-4 bg-blue-600" title="Valor" style={{height: `${(inv.current / maxInvestValue) * 100}%`}} />
+                  <div key={i} className="flex flex-col items-center justify-end h-full z-10 w-full group">
+                    <div className="bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100 text-[9px] font-black text-slate-700 mb-2 z-20">
+                      {fPct(inv.roi)}
                     </div>
-                    <span className="absolute top-0 text-[8px] font-black bg-white border border-slate-200 px-1 py-0.5 rounded shadow-sm">{fPct(inv.roi)}</span>
-                    <span className="text-[9px] font-black text-slate-700 uppercase mt-2">{inv.name}</span>
+                    {/* Contenedor flex-1 asegura que las barras usen el espacio restante exacto */}
+                    <div className="flex items-end gap-1 w-full justify-center flex-1 pb-1">
+                      <div className="w-5 bg-slate-300 rounded-t-sm" title="Capital Invertido" style={{height: `${Math.max((inv.cost / maxInvestValue) * 100, 1)}%`}}></div>
+                      <div className="w-5 bg-blue-600 rounded-t-sm shadow-sm" title="Valor Mercado" style={{height: `${Math.max((inv.current / maxInvestValue) * 100, 1)}%`}}></div>
+                    </div>
+                    <span className="text-[10px] font-black text-slate-800 uppercase mt-2">{inv.name}</span>
                   </div>
                 ))}
               </div>
@@ -227,7 +283,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                 <thead>
                   <tr className="bg-slate-100 text-slate-500 uppercase tracking-widest border-b border-slate-200">
                     <th className="p-2 text-left">Activo</th>
-                    <th className="p-2 text-right">Inversión</th>
+                    <th className="p-2 text-right">Inversión Total</th>
                     <th className="p-2 text-right">Valor Mercado</th>
                     <th className="p-2 text-center">ROI</th>
                   </tr>
@@ -255,6 +311,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               </table>
             </div>
 
+            {/* ASSET ALLOCATION */}
             <div className="col-span-2 flex flex-col">
               <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-6 flex items-center gap-2"><PieChart size={16}/> Distribución de Capital</h2>
               <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 border border-slate-200 rounded-none">
@@ -276,7 +333,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
             </div>
           </div>
 
-          {/* SECCIÓN 4: GASTOS MAYORES (RESTAURADA) Y AUDITORÍA */}
+          {/* SECCIÓN 4: GASTOS MAYORES Y AUDITORÍA */}
           <div className="grid grid-cols-2 gap-10 pt-10 border-t border-slate-200 print-break-avoid">
             
             {/* Tabla Estructurada de Gastos Mayores */}
@@ -302,7 +359,6 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                   )) : (
                     <tr><td colSpan={3} className="p-4 text-center text-slate-400 font-bold uppercase text-[10px]">Sin salidas este mes</td></tr>
                   )}
-                  {/* Fila Total */}
                   <tr className="bg-slate-100 font-black text-slate-900 text-[11px]">
                     <td className="p-3 border border-slate-200 uppercase">Total Gastos Reportados</td>
                     <td className="p-3 border border-slate-200 text-right">{fUSD(expenses)}</td>
@@ -344,7 +400,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
 
 const KPICard = ({ title, value, subtitle, icon, highlight = false }: any) => (
   <div className="text-center p-4 border border-transparent hover:border-slate-100 transition-all">
-    <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-4 ${highlight ? 'bg-emerald-600 text-white' : 'bg-blue-900 text-white'}`}>
+    <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-4 ${highlight && value.includes('-') ? 'bg-rose-600 text-white' : highlight ? 'bg-emerald-600 text-white' : 'bg-blue-900 text-white'}`}>
       {icon}
     </div>
     <p className={`text-2xl font-black tracking-tighter mb-1 ${highlight && value.includes('-') ? 'text-rose-600' : highlight ? 'text-emerald-600' : 'text-slate-900'}`}>{value}</p>

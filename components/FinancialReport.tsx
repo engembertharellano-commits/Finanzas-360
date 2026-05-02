@@ -10,8 +10,8 @@ import {
   BarChart2,
   Zap,
   Minus,
-  Building2, // ¡AQUÍ ESTABA EL ERROR! Faltaban estos dos
-  Target     // íconos en la importación anterior.
+  Building2,
+  Target
 } from 'lucide-react';
 import { BankAccount, Transaction, Investment } from '../types';
 
@@ -30,7 +30,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
   exchangeRate = 1,
   selectedMonth
 }) => {
-  // --- ESTILOS DE IMPRESIÓN ---
+  // --- ESTILOS DE IMPRESIÓN LIMPIOS (SIN MARCA DE AGUA) ---
   const printStyles = `
     @media print {
       @page { size: A4 portrait; margin: 10mm; }
@@ -42,24 +42,6 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
       .no-print { display: none !important; }
       .print-container { width: 210mm !important; margin: 0 auto !important; box-shadow: none !important; border: none !important; }
       .print-break-avoid { break-inside: avoid; page-break-inside: avoid; }
-    }
-    .report-bg-pattern {
-      background-color: #f8fafc;
-      background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
-      background-size: 24px 24px;
-    }
-    .watermark-bg {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) rotate(-30deg);
-      font-size: 12rem;
-      font-weight: 900;
-      color: rgba(30, 58, 138, 0.1);
-      pointer-events: none;
-      white-space: nowrap;
-      z-index: 0;
-      text-transform: uppercase;
     }
   `;
 
@@ -86,7 +68,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { current: toUSD(fundAcc.balance, fundAcc.currency) };
   }, [accounts, exchangeRate]);
 
-  // 3. Flujos del Mes
+  // 3. Flujos del Mes y FLUJO DE CAJA
   const { income, expenses, savingsRate, cashFlow } = useMemo(() => {
     let inc = 0, exp = 0;
     transactions.filter(t => t?.date?.startsWith(selectedMonth)).forEach(t => {
@@ -166,13 +148,10 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
   return (
     <>
       <style>{printStyles}</style>
-      <div className="bg-white min-h-screen py-8 no-print report-bg-pattern">
+      <div className="bg-slate-50 min-h-screen py-8 no-print">
         
         <div className="print-container relative max-w-[210mm] mx-auto bg-white shadow-2xl overflow-hidden font-sans text-slate-800 border border-slate-200">
           
-          {/* MARCA DE AGUA */}
-          <div className="watermark-bg">FINANZA360</div>
-
           {/* HEADER CORPORATIVO SÓLIDO AZUL OSCURO */}
           <div className="bg-slate-900 text-white px-10 py-8 flex justify-between items-center relative z-10 print-break-avoid border-b border-slate-800">
             <div className="flex items-center gap-6">
@@ -191,12 +170,19 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
 
           <div className="p-10 space-y-12 relative z-10">
             
-            {/* SECCIÓN 1: KPIs (Iconos circulares, como en la foto) */}
+            {/* SECCIÓN 1: KPIs (Con Flujo de Caja en lugar de Fondo de Emergencia) */}
             <div className="grid grid-cols-4 gap-6 print-break-avoid border-b border-slate-200 pb-10">
               <KPICol title="Patrimonio Neto" value={fUSD(netWorth)} desc="Total activos" color="bg-blue-900" icon={<Briefcase size={20}/>} />
               <KPICol title="Ingresos" value={fUSD(income)} desc="Entradas operativas" color="bg-emerald-600" icon={<TrendingUp size={20}/>} />
               <KPICol title="Gastos" value={fUSD(expenses)} desc="Salidas operativas" color="bg-rose-600" icon={<TrendingDown size={20}/>} />
-              <KPICol title="Fondo Emergencia" value={fUSD(emergencyFund.current)} desc="Pote de Reserva" color="bg-blue-600" icon={<Shield size={20}/>} />
+              <KPICol 
+                title="Flujo de Caja" 
+                value={fUSD(cashFlow)} 
+                desc="Saldo del periodo" 
+                color={cashFlow >= 0 ? "bg-teal-600" : "bg-rose-600"} 
+                icon={<Activity size={20}/>} 
+                highlight={cashFlow > 0} 
+              />
             </div>
 
             {/* SECCIÓN 2: BALANCE OPERATIVO HISTÓRICO */}
@@ -228,7 +214,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
             {/* SECCIÓN 3: RENDIMIENTO DE INVERSIONES Y PORTAFOLIO */}
             <div className="grid grid-cols-5 gap-10 print-break-avoid border-t border-slate-200 pt-10">
               <div className="col-span-3 space-y-6">
-                <h2 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2"><Activity size={16} className="text-blue-600"/> Rendimiento de Activos (ROI)</h2>
+                <h2 className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2"><Activity size={16} className="text-blue-600"/> Rendimiento de Activos (ROI Real)</h2>
                 
                 <div className="h-56 border border-slate-100 bg-white p-6 flex items-end justify-around gap-4 relative shadow-sm">
                   {assetBreakdown.slice(0, 5).map((inv, i) => {
@@ -341,10 +327,24 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               </div>
             </div>
 
-            {/* SECCIÓN 5: AUDITORÍA Y SALUD */}
-            <div className="grid grid-cols-2 gap-10 pt-10 border-t border-slate-200 print-break-avoid">
-              <AuditBox title="Status de Liquidez" value={fUSD(emergencyFund.current)} desc={emergencyFund.current > (expenses * 3) ? "Excelente: Cubre más de 3 meses de gastos operativos." : "Alerta: Liquidez inferior al benchmark de seguridad (3 meses de gastos)."} />
-              <AuditBox title="Eficiencia de Ahorro" value={fPct(savingsRate).replace('+', '')} desc={savingsRate > 20 ? "Margen operativo óptimo para expansión de capital." : "Ratio ajustado. Se recomienda auditoría de gastos variables."} />
+            {/* SECCIÓN 5: FONDO DE EMERGENCIA Y AUDITORÍA */}
+            <div className="pt-10 border-t border-slate-200 print-break-avoid">
+              <h2 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2"><Shield size={16} className="text-blue-600"/> Reserva y Salud Financiera</h2>
+              
+              <div className="grid grid-cols-3 gap-8">
+                {/* TARJETA DESTACADA DEL FONDO DE EMERGENCIA */}
+                <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-lg flex flex-col justify-center relative overflow-hidden">
+                  <Shield size={80} className="absolute -right-4 -bottom-4 opacity-10" />
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-3">Fondo de Emergencia</span>
+                  <span className="text-4xl font-black">{fUSD(emergencyFund.current)}</span>
+                  <span className="text-[10px] text-slate-300 mt-2 font-medium">Capital de reserva de acceso inmediato</span>
+                </div>
+
+                <div className="col-span-2 grid grid-cols-2 gap-6">
+                  <AuditBox title="Status de Liquidez" value={fUSD(emergencyFund.current)} desc={emergencyFund.current > (expenses * 3) ? "Excelente: Cubre más de 3 meses de gastos operativos consolidados." : "Alerta: Liquidez inferior al benchmark de seguridad (3 meses de gastos)."} />
+                  <AuditBox title="Eficiencia de Ahorro" value={fPct(savingsRate).replace('+', '')} desc={savingsRate > 20 ? "Margen operativo óptimo para expansión de capital." : "Ratio ajustado. Se recomienda auditoría de gastos variables."} />
+                </div>
+              </div>
             </div>
 
           </div>
@@ -358,19 +358,19 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
   );
 };
 
-const KPICol = ({ title, value, desc, color, icon }: any) => (
+const KPICol = ({ title, value, desc, color, icon, highlight = false }: any) => (
   <div className="text-center p-4 border border-transparent hover:border-slate-100 hover:bg-slate-50 transition-all rounded-2xl">
     <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 ${color} text-white shadow-lg`}>
       {icon}
     </div>
-    <p className="text-2xl font-black text-slate-900 tracking-tighter">{value}</p>
+    <p className={`text-2xl font-black tracking-tighter ${highlight ? 'text-teal-600' : 'text-slate-900'}`}>{value}</p>
     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5">{title}</h3>
     <p className="text-[9px] text-slate-400 font-bold mt-1 uppercase leading-tight">{desc}</p>
   </div>
 );
 
 const AuditBox = ({ title, value, desc }: any) => (
-  <div className="flex gap-4 items-start p-5 bg-white border border-slate-100 shadow-sm relative overflow-hidden group hover:border-blue-100 hover:bg-blue-50/20 transition-all rounded-xl">
+  <div className="flex gap-4 items-start p-5 bg-white border border-slate-100 shadow-sm relative overflow-hidden group hover:border-blue-100 hover:bg-blue-50/20 transition-all rounded-xl h-full">
     <div className="absolute top-0 right-0 p-2 opacity-5"><Target size={40}/></div>
     <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl shrink-0 group-hover:bg-blue-100"><Shield size={20}/></div>
     <div>

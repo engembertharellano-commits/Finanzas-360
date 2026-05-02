@@ -30,7 +30,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
   exchangeRate = 1,
   selectedMonth
 }) => {
-  // --- MOTOR DE IMPRESIÓN CORREGIDO (SIN RECORTES DE LÓGICA) ---
+  // --- MOTOR DE IMPRESIÓN BLINDADO (SOLUCIÓN PANTALLA BLANCA Y BLOQUEO) ---
   const printStyles = `
     @media print {
       @page { size: A4 portrait; margin: 0; }
@@ -71,7 +71,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { netWorth: assets - liabilities };
   }, [accounts, investments, exchangeRate]);
 
-  // 2. FONDO DE EMERGENCIA (Búsqueda en cuentas)
+  // 2. FONDO DE EMERGENCIA (Búsqueda dinámica por nombre)
   const emergencyFund = useMemo(() => {
     const fundAcc = accounts.find(a => a.name.toLowerCase().includes('emergencia'));
     return { current: fundAcc ? toUSD(fundAcc.balance, fundAcc.currency) : 0 };
@@ -88,7 +88,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { income: inc, expenses: exp, savingsRate: inc > 0 ? ((inc - exp) / inc) * 100 : 0, cashFlow: inc - exp };
   }, [transactions, selectedMonth, exchangeRate]);
 
-  // 4. Histórico 6 Meses (Gráfica con montos flotantes)
+  // 4. Histórico 6 Meses (Gráfica con montos flotantes sobre barras)
   const history6Months = useMemo(() => {
     if (!selectedMonth) return [];
     const [year, month] = selectedMonth.split('-').map(Number);
@@ -107,7 +107,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return monthsData;
   }, [selectedMonth, transactions, exchangeRate]);
 
-  // 5. Inversiones (ROI Real)
+  // 5. Inversiones (ROI Real con Tabla Detallada)
   const assetBreakdown = useMemo(() => {
     return investments.map(inv => {
       const cost = toUSD(inv.initialInvestment || (inv.quantity * inv.buyPrice) || 0, inv.currency);
@@ -117,7 +117,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
   }, [investments, exchangeRate]);
   const totalInvested = assetBreakdown.reduce((acc, inv) => acc + inv.cost, 0);
 
-  // 6. Portafolio Donut
+  // 6. Portafolio Donut (Distribución de Capital)
   const portfolioData = useMemo(() => {
     const cats: Record<string, number> = {};
     let total = 0;
@@ -137,7 +137,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { segments, total, conicGradient: segments.length > 0 ? segments.map(s => `${s.color} ${s.start}deg ${s.end}deg`).join(', ') : '#e2e8f0 0deg 360deg' };
   }, [investments, exchangeRate]);
 
-  // 7. Análisis de Gastos Mayores (Top 5)
+  // 7. Análisis de Gastos Mayores (Top 5 con Barras Proporcionales)
   const spendingTable = useMemo(() => {
     const cats: Record<string, number> = {};
     transactions.filter(t => t?.date?.startsWith(selectedMonth) && t.type === 'Gasto').forEach(t => {
@@ -155,6 +155,11 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return `${meses[parseInt(month) - 1]} ${year}`;
   }, [selectedMonth]);
 
+  // Función de impresión con retardo para evitar que se quede cargando
+  const handlePrint = () => {
+    setTimeout(() => { window.print(); }, 250);
+  };
+
   return (
     <>
       <style>{printStyles}</style>
@@ -162,7 +167,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
         
         <div id="printable-report-area" className="relative w-full max-w-[210mm] bg-white shadow-2xl overflow-hidden font-sans text-slate-800 border border-slate-200">
           
-          {/* HEADER */}
+          {/* HEADER CORPORATIVO SÓLIDO AZUL OSCURO */}
           <div className="bg-slate-900 text-white px-10 py-8 flex justify-between items-center relative z-10 border-b border-slate-800" style={{ backgroundColor: '#0f172a' }}>
             <div className="flex items-center gap-6">
               <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg border border-blue-700 no-print" style={{ backgroundColor: '#2563eb' }}>
@@ -173,14 +178,14 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                 <p className="text-blue-400 font-bold text-xs mt-1 uppercase tracking-widest">{displayDate}</p>
               </div>
             </div>
-            <button onClick={() => window.print()} className="no-print bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg flex items-center gap-2" style={{ backgroundColor: '#2563eb' }}>
+            <button onClick={handlePrint} className="no-print bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg flex items-center gap-2" style={{ backgroundColor: '#2563eb' }}>
               <Download size={16} /> EXPORTAR
             </button>
           </div>
 
           <div className="p-10 space-y-12 bg-white relative z-10">
             
-            {/* SECCIÓN 1: KPIs */}
+            {/* SECCIÓN 1: KPIs CLAVE */}
             <div className="grid grid-cols-4 gap-6 print-break-avoid border-b border-slate-100 pb-10">
               <KPICol title="Patrimonio Neto" value={fUSD(netWorth)} desc="Total activos" color="#1e3a8a" icon={<Briefcase size={20}/>} />
               <KPICol title="Ingresos" value={fUSD(income)} desc="Entradas mes" color="#059669" icon={<TrendingUp size={20}/>} />
@@ -188,12 +193,12 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               <KPICol title="Flujo de Caja" value={fUSD(cashFlow)} desc="Saldo neto" color={cashFlow >= 0 ? "#0d9488" : "#e11d48"} icon={<Activity size={20}/>} highlight={cashFlow > 0} />
             </div>
 
-            {/* SECCIÓN 2: COMPARACIÓN DE FLUJO DE CAJA (BARRAS AZUL/ROJO) */}
+            {/* SECCIÓN 2: COMPARACIÓN DE FLUJO DE CAJA (BARRAS AZUL/ROJO CON MONTOS) */}
             <div className="print-break-avoid border border-slate-100 p-8 rounded-3xl" style={{ backgroundColor: '#f8fafc' }}>
               <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-14 text-center">Comparación de Flujo de Caja (6 Meses)</h2>
-              <div className="flex items-end justify-center gap-4 md:gap-8 h-48 w-full relative px-2">
+              <div className="flex items-end justify-center gap-8 h-48 w-full relative px-10">
                 <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8 opacity-20">
-                  {[0,1,2,3].map(i => <div key={i} className="w-full border-t border-slate-400 border-dashed h-0" />)}
+                  {[0,1,2,3].map(i => <div key={i} className="w-full border-t border-slate-900 border-dashed h-0" />)}
                 </div>
                 {history6Months.map((m, i) => {
                   const max = Math.max(...history6Months.map(x => Math.max(x.income, x.expenses))) || 1;
@@ -209,14 +214,10 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                           <div style={{ height: `${Math.max((m.expenses/max)*100, 1)}%`, backgroundColor: '#e11d48', width: '100%', borderRadius: '4px 4px 0 0' }} />
                         </div>
                       </div>
-                      <span className="absolute bottom-0 text-[8px] md:text-[10px] font-black text-slate-500 uppercase whitespace-nowrap">{m.label}</span>
+                      <span className="absolute bottom-0 text-[10px] font-black text-slate-500 uppercase whitespace-nowrap">{m.label}</span>
                     </div>
                   );
                 })}
-              </div>
-              <div className="flex justify-center gap-6 mt-6 pt-4 border-t border-slate-200">
-                <div className="flex items-center gap-2"><div className="w-3 h-3" style={{ backgroundColor: '#0f172a' }}></div><span className="text-[9px] font-bold text-slate-600 uppercase">Ingresos</span></div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3" style={{ backgroundColor: '#e11d48' }}></div><span className="text-[9px] font-bold text-slate-600 uppercase">Gastos</span></div>
               </div>
             </div>
 
@@ -265,7 +266,6 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                   </tbody>
                 </table>
               </div>
-
               <div className="col-span-2 space-y-6">
                 <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest flex items-center gap-2"><PieChart size={16} className="text-blue-600"/> Distribución</h2>
                 <div className="aspect-square border border-slate-100 rounded-full flex items-center justify-center relative shadow-inner" style={{ backgroundColor: '#f8fafc' }}>
@@ -278,10 +278,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                 <div className="space-y-2 pt-2 border-t border-slate-100">
                   {portfolioData.segments.slice(0, 5).map((s, i) => (
                     <div key={i} className="flex justify-between items-center text-[10px] font-bold">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: s.color}} />
-                        <span className="text-slate-500 uppercase truncate max-w-[100px]">{s.name}</span>
-                      </div>
+                      <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: s.color}} /><span className="text-slate-500 uppercase truncate max-w-[100px]">{s.name}</span></div>
                       <span>{s.perc.toFixed(1)}%</span>
                     </div>
                   ))}
@@ -289,7 +286,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               </div>
             </div>
 
-            {/* SECCIÓN 4: GASTOS Y PROYECCIONES */}
+            {/* SECCIÓN 4: GASTOS MAYORES (CON BARRAS) Y PROYECCIONES (OUTLOOK COMPLETO) */}
             <div className="grid grid-cols-2 gap-10 print-break-avoid pt-10 border-t border-slate-200">
               <div>
                 <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-6 flex items-center gap-2"><BarChart2 size={16} className="text-blue-600"/> Gastos Mayores (Top 5)</h2>
@@ -330,14 +327,14 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               </div>
             </div>
 
-            {/* SECCIÓN 5: RESERVA Y SALUD */}
+            {/* SECCIÓN 5: RESERVA Y SALUD FINANCIERA (FONDO DE EMERGENCIA) */}
             <div className="pt-10 border-t border-slate-200 print-break-avoid">
               <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-6 flex items-center gap-2"><Shield size={16} className="text-blue-600"/> Reserva y Salud Financiera</h2>
               <div className="grid grid-cols-3 gap-8">
-                <div className="text-white p-6 rounded-2xl shadow-lg flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: '#0f172a' }}>
+                <div className="text-white p-8 rounded-3xl shadow-lg flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: '#0f172a' }}>
                   <Shield size={80} className="absolute -right-4 -bottom-4 opacity-10" />
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-3">Fondo de Emergencia</span>
-                  <span className="text-4xl font-black text-white">{fUSD(emergencyFund.current)}</span>
+                  <span className="text-4xl font-black text-white mt-2">{fUSD(emergencyFund.current)}</span>
                 </div>
                 <div className="col-span-2 grid grid-cols-2 gap-6">
                   <div className="flex gap-4 items-start p-5 bg-white border border-slate-100 shadow-sm relative overflow-hidden h-full rounded-xl">
@@ -345,7 +342,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                     <div className="p-2.5 rounded-xl shrink-0 text-blue-600" style={{ backgroundColor: '#eff6ff' }}><Shield size={20}/></div>
                     <div>
                       <h4 className="text-[11px] font-black uppercase text-slate-900 mb-1 tracking-widest">Status Liquidez: <span className="text-blue-600">{fUSD(emergencyFund.current)}</span></h4>
-                      <p className="text-[9px] text-slate-500 font-bold leading-relaxed">{emergencyFund.current > (expenses * 3) ? "Excelente cobertura (3+ meses)." : "Aumentar reserva."}</p>
+                      <p className="text-[9px] text-slate-500 font-bold leading-relaxed">{emergencyFund.current > (expenses * 3) ? "Excelente cobertura (3+ meses)." : "Reserva por debajo del benchmark."}</p>
                     </div>
                   </div>
                   <div className="flex gap-4 items-start p-5 bg-white border border-slate-100 shadow-sm relative overflow-hidden h-full rounded-xl">
@@ -361,8 +358,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
             </div>
 
           </div>
-
-          <div className="bg-slate-900 text-white/40 text-center py-4 text-[7px] uppercase tracking-[0.4em] font-black border-t border-slate-800" style={{ backgroundColor: '#0f172a' }}>
+          <div className="bg-slate-900 text-white/40 text-center py-4 text-[7px] uppercase tracking-[0.4em] font-black italic border-t border-slate-800" style={{ backgroundColor: '#0f172a' }}>
             Documento Confidencial • Generado Automáticamente por Finanza360
           </div>
         </div>
@@ -373,7 +369,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
 
 const KPICol = ({ title, value, desc, color, icon, highlight = false }: any) => (
   <div className="text-center p-2 border border-transparent hover:border-slate-100 hover:bg-slate-50 transition-all rounded-2xl">
-    <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 text-white shadow-lg`} style={{ backgroundColor: color }}>
+    <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-white shadow-lg`} style={{ backgroundColor: color }}>
       {icon}
     </div>
     <p className={`text-2xl font-black ${highlight ? 'text-teal-600' : 'text-slate-900'}`}>{value}</p>

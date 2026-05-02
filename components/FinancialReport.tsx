@@ -47,7 +47,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
         width: 210mm !important;
         min-height: 297mm !important;
         margin: 0 !important;
-        padding: 8mm !important;
+        padding: 10mm !important;
         background-color: white !important;
         box-shadow: none !important;
         border: none !important;
@@ -73,7 +73,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { netWorth: assets - liabilities };
   }, [accounts, investments, exchangeRate]);
 
-  // 2. Fondo de Emergencia
+  // 2. Fondo de Emergencia (Lectura de cuenta dinámica)
   const emergencyFund = useMemo(() => {
     const fundAcc = accounts.find(a => a.name.toLowerCase().includes('emergencia'));
     return { current: fundAcc ? toUSD(fundAcc.balance, fundAcc.currency) : 0 };
@@ -148,7 +148,6 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return Object.entries(cats).sort((a,b) => b[1]-a[1]).slice(0, 5);
   }, [transactions, selectedMonth, exchangeRate]);
 
-  // --- FORMATEADORES ---
   const fUSD = (v: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v || 0);
   const fPct = (v: number) => isNaN(v) ? '0.0%' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%`;
 
@@ -169,7 +168,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
         
         <div id="report-core-container" className="relative w-full max-w-[210mm] bg-white shadow-2xl overflow-hidden font-sans text-slate-800 border border-slate-200">
           
-          {/* HEADER */}
+          {/* HEADER CORPORATIVO SÓLIDO AZUL OSCURO */}
           <div className="bg-slate-900 text-white px-10 py-8 flex justify-between items-center relative z-10 border-b border-slate-800" style={{ backgroundColor: '#0f172a' }}>
             <div className="flex items-center gap-6">
               <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg border border-blue-700 no-print" style={{ backgroundColor: '#2563eb' }}>
@@ -181,7 +180,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               </div>
             </div>
             <button onClick={handlePrint} className="no-print bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg flex items-center gap-2" style={{ backgroundColor: '#2563eb' }}>
-              <Download size={16} /> Exportar
+              <Download size={16} /> EXPORTAR
             </button>
           </div>
 
@@ -198,7 +197,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
             {/* SECCIÓN 2: COMPARACIÓN DE FLUJO DE CAJA (BARRAS BLINDADAS) */}
             <div className="print-break-avoid border border-slate-100 p-8 rounded-3xl" style={{ backgroundColor: '#f8fafc' }}>
               <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-14 text-center">Comparación de Flujo de Caja (6 Meses)</h2>
-              <div className="flex items-end justify-center gap-8 h-48 w-full relative px-10">
+              <div className="flex items-end justify-center gap-4 md:gap-8 h-48 w-full relative px-2">
                 <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8 opacity-10">
                   {[0,1,2,3].map(i => <div key={i} className="w-full border-t border-slate-900 border-dashed h-0" />)}
                 </div>
@@ -207,19 +206,25 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                   return (
                     <div key={i} className="flex-1 flex flex-col items-center justify-end h-full relative z-10">
                       <div className="flex items-end gap-1.5 w-full justify-center h-full pb-8">
+                        {/* Ingresos (Azul Oscuro) */}
                         <div className="flex flex-col items-center justify-end h-full w-full max-w-[24px]">
                           <span className="text-[7px] font-black text-slate-900 mb-1">{m.income > 0 ? fUSD(m.income) : ''}</span>
                           <div style={{ height: `${Math.max((m.income/max)*100, 1)}%`, backgroundColor: '#0f172a', width: '100%', borderRadius: '4px 4px 0 0' }} />
                         </div>
+                        {/* Gastos (Rojo) */}
                         <div className="flex flex-col items-center justify-end h-full w-full max-w-[24px]">
                           <span className="text-[7px] font-black text-rose-600 mb-1">{m.expenses > 0 ? fUSD(m.expenses) : ''}</span>
                           <div style={{ height: `${Math.max((m.expenses/max)*100, 1)}%`, backgroundColor: '#e11d48', width: '100%', borderRadius: '4px 4px 0 0' }} />
                         </div>
                       </div>
-                      <span className="absolute bottom-0 text-[10px] font-black text-slate-500 uppercase whitespace-nowrap">{m.label}</span>
+                      <span className="absolute bottom-0 text-[8px] md:text-[10px] font-black text-slate-500 uppercase whitespace-nowrap">{m.label}</span>
                     </div>
                   );
                 })}
+              </div>
+              <div className="flex justify-center gap-6 mt-6 pt-4 border-t border-slate-200">
+                <div className="flex items-center gap-2"><div className="w-3 h-3" style={{ backgroundColor: '#0f172a' }}></div><span className="text-[9px] font-bold text-slate-600 uppercase">Ingresos</span></div>
+                <div className="flex items-center gap-2"><div className="w-3 h-3" style={{ backgroundColor: '#e11d48' }}></div><span className="text-[9px] font-bold text-slate-600 uppercase">Gastos</span></div>
               </div>
             </div>
 
@@ -244,10 +249,10 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                 <table className="w-full text-[10px] border-collapse border border-slate-100">
                   <thead>
                     <tr className="text-white uppercase tracking-widest border-b border-slate-800" style={{ backgroundColor: '#0f172a' }}>
-                      <th className="p-2 text-left">Posición</th>
+                      <th className="p-2 text-left rounded-tl-lg">Posición</th>
                       <th className="p-2 text-right">Inversión</th>
                       <th className="p-2 text-right">Valor Actual</th>
-                      <th className="p-2 text-center">ROI</th>
+                      <th className="p-2 text-center rounded-tr-lg">ROI</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -268,8 +273,9 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                   </tbody>
                 </table>
               </div>
+
               <div className="col-span-2 space-y-6">
-                <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest flex items-center gap-2"><PieChart size={16} className="text-blue-600"/> Distribución</h2>
+                <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest flex items-center gap-2"><PieChart size={16} className="text-blue-600"/> Distribución de Capital</h2>
                 <div className="aspect-square border border-slate-100 rounded-full flex items-center justify-center relative shadow-inner" style={{ backgroundColor: '#f8fafc' }}>
                   <div className="w-48 h-48 rounded-full" style={{ background: `conic-gradient(${portfolioData.conicGradient})` }} />
                   <div className="absolute w-32 h-32 bg-white rounded-full flex flex-col items-center justify-center shadow-xl border border-slate-50">
@@ -280,7 +286,10 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                 <div className="space-y-2 pt-2 border-t border-slate-100">
                   {portfolioData.segments.slice(0, 5).map((s, i) => (
                     <div key={i} className="flex justify-between items-center text-[10px] font-bold">
-                      <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: s.color}} /><span className="text-slate-500 uppercase truncate max-w-[100px]">{s.name}</span></div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: s.color}} />
+                        <span className="text-slate-500 uppercase truncate max-w-[100px]">{s.name}</span>
+                      </div>
                       <span>{s.perc.toFixed(1)}%</span>
                     </div>
                   ))}
@@ -288,7 +297,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               </div>
             </div>
 
-            {/* SECCIÓN 4: GASTOS Y PROYECCIONES (RESTAURADOS) */}
+            {/* SECCIÓN 4: GASTOS MAYORES Y PROYECCIONES (TOTALMENTE RESTAURADO) */}
             <div className="grid grid-cols-2 gap-10 print-break-avoid pt-10 border-t border-slate-200">
               <div>
                 <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-6 flex items-center gap-2"><BarChart2 size={16} className="text-blue-600"/> Gastos Mayores (Top 5)</h2>
@@ -309,7 +318,11 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                         </div>
                       </div>
                     </div>
-                  )) : <p className="text-[10px] font-bold text-slate-400 text-center p-4">Sin salidas registradas</p>}
+                  )) : (
+                     <div className="p-6 text-center border-2 border-dashed border-slate-200 rounded-2xl">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Sin salidas registradas</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -332,29 +345,41 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               </div>
             </div>
 
-            {/* SECCIÓN 5: RESERVA */}
+            {/* SECCIÓN 5: FONDO DE EMERGENCIA Y AUDITORÍA */}
             <div className="pt-10 border-t border-slate-200 print-break-avoid">
               <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-6 flex items-center gap-2"><Shield size={16} className="text-blue-600"/> Reserva y Salud Financiera</h2>
+              
               <div className="grid grid-cols-3 gap-8">
                 <div className="text-white p-6 rounded-2xl shadow-lg flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: '#0f172a' }}>
                   <Shield size={80} className="absolute -right-4 -bottom-4 opacity-10" />
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-3">Fondo de Emergencia</span>
                   <span className="text-4xl font-black text-white">{fUSD(emergencyFund.current)}</span>
                 </div>
+
                 <div className="col-span-2 grid grid-cols-2 gap-6">
-                  <div className="p-5 bg-slate-50 border border-slate-100 rounded-xl">
-                    <h4 className="text-[11px] font-black uppercase text-slate-900 mb-1 tracking-widest">Status Liquidez</h4>
-                    <p className="text-[9px] text-slate-500 font-bold leading-relaxed">{emergencyFund.current > (expenses * 3) ? "Excelente cobertura (3+ meses)." : "Se recomienda aumentar reserva."}</p>
+                  <div className="flex gap-4 items-start p-5 bg-white border border-slate-100 shadow-sm relative overflow-hidden h-full rounded-xl">
+                    <div className="absolute top-0 right-0 p-2 opacity-5"><Target size={40}/></div>
+                    <div className="p-2.5 rounded-xl shrink-0 text-blue-600" style={{ backgroundColor: '#eff6ff' }}><Shield size={20}/></div>
+                    <div>
+                      <h4 className="text-[11px] font-black uppercase text-slate-900 mb-1 tracking-widest">Status Liquidez: <span className="text-blue-600">{fUSD(emergencyFund.current)}</span></h4>
+                      <p className="text-[9px] text-slate-500 font-bold leading-relaxed">{emergencyFund.current > (expenses * 3) ? "Excelente cobertura (3+ meses)." : "Aumentar reserva."}</p>
+                    </div>
                   </div>
-                  <div className="p-5 bg-slate-50 border border-slate-100 rounded-xl">
-                    <h4 className="text-[11px] font-black uppercase text-slate-900 mb-1 tracking-widest">Eficiencia Ahorro</h4>
-                    <p className="text-[9px] text-slate-500 font-bold leading-relaxed">{savingsRate > 20 ? "Óptimo margen de capitalización." : "Revisar optimización de gastos."}</p>
+                  <div className="flex gap-4 items-start p-5 bg-white border border-slate-100 shadow-sm relative overflow-hidden h-full rounded-xl">
+                    <div className="absolute top-0 right-0 p-2 opacity-5"><Target size={40}/></div>
+                    <div className="p-2.5 rounded-xl shrink-0 text-blue-600" style={{ backgroundColor: '#eff6ff' }}><Activity size={20}/></div>
+                    <div>
+                      <h4 className="text-[11px] font-black uppercase text-slate-900 mb-1 tracking-widest">Eficiencia Ahorro: <span className="text-blue-600">{fPct(savingsRate).replace('+', '')}</span></h4>
+                      <p className="text-[9px] text-slate-500 font-bold leading-relaxed">{savingsRate > 20 ? "Óptimo margen de capitalización." : "Revisar gastos operativos."}</p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+
           </div>
-          <div className="text-white/50 text-center py-4 text-[7px] uppercase tracking-[0.4em] font-black border-t border-slate-800" style={{ backgroundColor: '#0f172a' }}>
+
+          <div className="text-white/50 text-center py-4 text-[7px] uppercase tracking-[0.4em] font-black italic border-t border-slate-800" style={{ backgroundColor: '#0f172a' }}>
             Documento Confidencial • Generado Automáticamente por Finanza360
           </div>
         </div>

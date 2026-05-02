@@ -46,8 +46,8 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
         top: 0;
         width: 210mm !important;
         min-height: 297mm !important;
-        margin: 0 auto !important;
-        padding: 10mm !important;
+        margin: 0 !important;
+        padding: 8mm !important;
         background-color: white !important;
         box-shadow: none !important;
         border: none !important;
@@ -79,7 +79,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { current: fundAcc ? toUSD(fundAcc.balance, fundAcc.currency) : 0 };
   }, [accounts, exchangeRate]);
 
-  // 3. Flujos y Flujo de Caja
+  // 3. Flujos del Mes y Flujo de Caja
   const { income, expenses, savingsRate, cashFlow } = useMemo(() => {
     let inc = 0, exp = 0;
     transactions.filter(t => t?.date?.startsWith(selectedMonth)).forEach(t => {
@@ -90,7 +90,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { income: inc, expenses: exp, savingsRate: inc > 0 ? ((inc - exp) / inc) * 100 : 0, cashFlow: inc - exp };
   }, [transactions, selectedMonth, exchangeRate]);
 
-  // 4. Histórico 6 Meses
+  // 4. Gráficos Históricos Operativos (6 Meses)
   const history6Months = useMemo(() => {
     if (!selectedMonth) return [];
     const [year, month] = selectedMonth.split('-').map(Number);
@@ -109,7 +109,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return monthsData;
   }, [selectedMonth, transactions, exchangeRate]);
 
-  // 5. Inversiones
+  // 5. Inversiones (ROI Real)
   const assetBreakdown = useMemo(() => {
     return investments.map(inv => {
       const cost = toUSD(inv.initialInvestment || (inv.quantity * inv.buyPrice) || 0, inv.currency);
@@ -139,7 +139,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return { segments, total, conicGradient: segments.length > 0 ? segments.map(s => `${s.color} ${s.start}deg ${s.end}deg`).join(', ') : '#e2e8f0 0deg 360deg' };
   }, [investments, exchangeRate]);
 
-  // 7. Gastos Top 5
+  // 7. Análisis de Gastos Mayores (Top 5)
   const spendingTable = useMemo(() => {
     const cats: Record<string, number> = {};
     transactions.filter(t => t?.date?.startsWith(selectedMonth) && t.type === 'Gasto').forEach(t => {
@@ -148,6 +148,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return Object.entries(cats).sort((a,b) => b[1]-a[1]).slice(0, 5);
   }, [transactions, selectedMonth, exchangeRate]);
 
+  // --- FORMATEADORES ---
   const fUSD = (v: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v || 0);
   const fPct = (v: number) => isNaN(v) ? '0.0%' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%`;
 
@@ -157,25 +158,29 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
     return `${meses[parseInt(month) - 1]} ${year}`;
   }, [selectedMonth]);
 
+  const handlePrint = () => {
+    setTimeout(() => { window.print(); }, 200);
+  };
+
   return (
     <>
       <style>{printStyles}</style>
-      <div className="bg-slate-100 min-h-screen py-4 md:py-8 flex justify-center w-full no-print">
+      <div className="bg-slate-100 min-h-screen py-8 flex justify-center w-full no-print">
         
-        <div id="report-core-container" className="relative w-full max-w-[210mm] bg-white shadow-2xl font-sans text-slate-800 border border-slate-200">
+        <div id="report-core-container" className="relative w-full max-w-[210mm] bg-white shadow-2xl overflow-hidden font-sans text-slate-800 border border-slate-200">
           
           {/* HEADER */}
           <div className="bg-slate-900 text-white px-10 py-8 flex justify-between items-center relative z-10 border-b border-slate-800" style={{ backgroundColor: '#0f172a' }}>
             <div className="flex items-center gap-6">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg border border-blue-700 no-print" style={{ backgroundColor: '#2563eb' }}>
+              <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg border border-blue-700 no-print" style={{ backgroundColor: '#2563eb' }}>
                 <Building2 size={28} className="text-white" />
               </div>
               <div>
                 <h1 className="text-3xl font-black tracking-tighter uppercase text-white">Balance Financiero Mensual</h1>
-                <p className="text-blue-400 font-bold text-xs mt-1 uppercase tracking-widest">{displayDate}</p>
+                <p className="text-blue-400 font-bold text-xs mt-1 uppercase tracking-widest">Periodo: {displayDate}</p>
               </div>
             </div>
-            <button onClick={() => window.print()} className="no-print text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg flex items-center gap-2" style={{ backgroundColor: '#2563eb' }}>
+            <button onClick={handlePrint} className="no-print bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-lg flex items-center gap-2" style={{ backgroundColor: '#2563eb' }}>
               <Download size={16} /> Exportar
             </button>
           </div>
@@ -183,76 +188,66 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
           <div className="p-10 space-y-12 bg-white relative z-10">
             
             {/* SECCIÓN 1: KPIs */}
-            <div className="grid grid-cols-4 gap-4 print-break-avoid border-b border-slate-100 pb-10">
+            <div className="grid grid-cols-4 gap-6 print-break-avoid border-b border-slate-100 pb-10">
               <KPICol title="Patrimonio Neto" value={fUSD(netWorth)} desc="Total activos" color="#1e3a8a" icon={<Briefcase size={20}/>} />
               <KPICol title="Ingresos" value={fUSD(income)} desc="Entradas operativas" color="#059669" icon={<TrendingUp size={20}/>} />
               <KPICol title="Gastos" value={fUSD(expenses)} desc="Salidas operativas" color="#e11d48" icon={<TrendingDown size={20}/>} />
               <KPICol title="Flujo de Caja" value={fUSD(cashFlow)} desc="Saldo del periodo" color={cashFlow >= 0 ? "#0d9488" : "#e11d48"} icon={<Activity size={20}/>} highlight={cashFlow > 0} />
             </div>
 
-            {/* SECCIÓN 2: COMPARACIÓN DE FLUJO DE CAJA (BARRAS ESTRICTAS EN LÍNEA) */}
+            {/* SECCIÓN 2: COMPARACIÓN DE FLUJO DE CAJA (BARRAS BLINDADAS) */}
             <div className="print-break-avoid border border-slate-100 p-8 rounded-3xl" style={{ backgroundColor: '#f8fafc' }}>
               <h2 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-14 text-center">Comparación de Flujo de Caja (6 Meses)</h2>
-              <div className="flex items-end justify-center gap-4 md:gap-8 h-48 w-full relative px-2">
-                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8 opacity-20">
-                  {[0,1,2,3].map(i => <div key={i} className="w-full border-t border-slate-400 border-dashed h-0" />)}
+              <div className="flex items-end justify-center gap-8 h-48 w-full relative px-10">
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8 opacity-10">
+                  {[0,1,2,3].map(i => <div key={i} className="w-full border-t border-slate-900 border-dashed h-0" />)}
                 </div>
                 {history6Months.map((m, i) => {
                   const max = Math.max(...history6Months.map(x => Math.max(x.income, x.expenses))) || 1;
                   return (
                     <div key={i} className="flex-1 flex flex-col items-center justify-end h-full relative z-10">
-                      <div className="flex items-end gap-1 w-full justify-center h-full pb-8">
-                        {/* Ingresos (Azul Oscuro) */}
+                      <div className="flex items-end gap-1.5 w-full justify-center h-full pb-8">
                         <div className="flex flex-col items-center justify-end h-full w-full max-w-[24px]">
                           <span className="text-[7px] font-black text-slate-900 mb-1">{m.income > 0 ? fUSD(m.income) : ''}</span>
                           <div style={{ height: `${Math.max((m.income/max)*100, 1)}%`, backgroundColor: '#0f172a', width: '100%', borderRadius: '4px 4px 0 0' }} />
                         </div>
-                        {/* Gastos (Rojo) */}
                         <div className="flex flex-col items-center justify-end h-full w-full max-w-[24px]">
                           <span className="text-[7px] font-black text-rose-600 mb-1">{m.expenses > 0 ? fUSD(m.expenses) : ''}</span>
                           <div style={{ height: `${Math.max((m.expenses/max)*100, 1)}%`, backgroundColor: '#e11d48', width: '100%', borderRadius: '4px 4px 0 0' }} />
                         </div>
                       </div>
-                      <span className="absolute bottom-0 text-[8px] md:text-[10px] font-black text-slate-500 uppercase whitespace-nowrap">{m.label}</span>
+                      <span className="absolute bottom-0 text-[10px] font-black text-slate-500 uppercase whitespace-nowrap">{m.label}</span>
                     </div>
                   );
                 })}
               </div>
-              <div className="flex justify-center gap-6 mt-8 pt-4 border-t border-slate-200">
-                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#0f172a' }}></div><span className="text-[10px] font-bold text-slate-600 uppercase">Ingresos</span></div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#e11d48' }}></div><span className="text-[10px] font-bold text-slate-600 uppercase">Gastos</span></div>
-              </div>
             </div>
 
-            {/* SECCIÓN 3: RENDIMIENTO DE INVERSIONES Y PORTAFOLIO */}
+            {/* SECCIÓN 3: INVERSIONES Y PORTAFOLIO */}
             <div className="grid grid-cols-5 gap-10 print-break-avoid border-t border-slate-200 pt-10">
               <div className="col-span-3 space-y-6">
                 <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest flex items-center gap-2"><TrendingUp size={16} className="text-blue-600"/> Rendimiento de Activos (ROI Real)</h2>
-                
-                <div className="h-56 border border-slate-100 p-6 flex items-end justify-around gap-4 relative shadow-sm rounded-xl" style={{ backgroundColor: '#f8fafc' }}>
+                <div className="h-56 border border-slate-100 bg-slate-50 p-6 flex items-end justify-around gap-4 relative shadow-sm rounded-xl" style={{ backgroundColor: '#f8fafc' }}>
                   {assetBreakdown.slice(0, 5).map((inv, i) => {
                     const max = Math.max(...assetBreakdown.map(x => Math.max(x.cost, x.current))) || 1;
                     return (
                       <div key={i} className="flex-1 flex flex-col items-center justify-end h-full z-10 w-full group">
-                        <div className="flex items-end gap-1 w-full justify-center h-full pb-0 group-hover:pb-1 transition-all">
-                          {/* Barra Inversión (Gris) */}
-                          <div className="w-4 rounded-t-sm" title="Capital Invertido" style={{ height: `${Math.max((inv.cost/max)*100, 2)}%`, backgroundColor: '#cbd5e1' }} />
-                          {/* Barra Valor (Azul) */}
-                          <div className="w-4 rounded-t-sm" title="Valor Mercado" style={{ height: `${Math.max((inv.current/max)*100, 2)}%`, backgroundColor: '#1d4ed8' }} />
+                        <div className="flex items-end gap-1 w-full justify-center flex-1 transition-all">
+                          <div className="w-4 rounded-t-sm" title="Inversión" style={{ height: `${Math.max((inv.cost/max)*100, 2)}%`, backgroundColor: '#cbd5e1' }} />
+                          <div className="w-4 rounded-t-sm" title="Valor" style={{ height: `${Math.max((inv.current/max)*100, 2)}%`, backgroundColor: '#1d4ed8' }} />
                         </div>
-                        <span className="text-[9px] font-bold text-slate-500 uppercase mt-2 truncate w-full text-center">{inv.name}</span>
+                        <span className="text-[9px] font-bold text-slate-500 uppercase mt-2 truncate w-full text-center group-hover:text-slate-800">{inv.name}</span>
                       </div>
                     );
                   })}
                 </div>
-                
                 <table className="w-full text-[10px] border-collapse border border-slate-100">
                   <thead>
                     <tr className="text-white uppercase tracking-widest border-b border-slate-800" style={{ backgroundColor: '#0f172a' }}>
-                      <th className="p-2 text-left rounded-tl-lg">Posición</th>
+                      <th className="p-2 text-left">Posición</th>
                       <th className="p-2 text-right">Inversión</th>
                       <th className="p-2 text-right">Valor Actual</th>
-                      <th className="p-2 text-center rounded-tr-lg">ROI</th>
+                      <th className="p-2 text-center">ROI</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -263,7 +258,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                         <td className="p-2 text-right font-bold text-slate-900">{fUSD(inv.current)}</td>
                         <td className={`p-2 text-center font-black ${inv.roi >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{fPct(inv.roi)}</td>
                       </tr>
-                    )) : <tr><td colSpan={4} className="p-4 text-center text-slate-400">Sin inversiones activas</td></tr>}
+                    )) : <tr><td colSpan={4} className="p-4 text-center">Sin inversiones</td></tr>}
                     <tr className="font-black border-t-2 border-blue-200" style={{ backgroundColor: '#eff6ff' }}>
                       <td className="p-2 uppercase text-blue-900">Total Portafolio</td>
                       <td className="p-2 text-right text-blue-900">{fUSD(totalInvested)}</td>
@@ -273,13 +268,12 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                   </tbody>
                 </table>
               </div>
-
               <div className="col-span-2 space-y-6">
-                <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest flex items-center gap-2"><PieChart size={16} className="text-blue-600"/> Distribución de Capital</h2>
+                <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest flex items-center gap-2"><PieChart size={16} className="text-blue-600"/> Distribución</h2>
                 <div className="aspect-square border border-slate-100 rounded-full flex items-center justify-center relative shadow-inner" style={{ backgroundColor: '#f8fafc' }}>
                   <div className="w-48 h-48 rounded-full" style={{ background: `conic-gradient(${portfolioData.conicGradient})` }} />
                   <div className="absolute w-32 h-32 bg-white rounded-full flex flex-col items-center justify-center shadow-xl border border-slate-50">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Valuación Total</span>
+                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">AUM Total</span>
                     <span className="text-sm font-black text-slate-900">{fUSD(portfolioData.total)}</span>
                   </div>
                 </div>
@@ -294,14 +288,13 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               </div>
             </div>
 
-            {/* SECCIÓN 4: GASTOS MAYORES Y PROYECCIONES (RESTAURADOS) */}
+            {/* SECCIÓN 4: GASTOS Y PROYECCIONES (RESTAURADOS) */}
             <div className="grid grid-cols-2 gap-10 print-break-avoid pt-10 border-t border-slate-200">
               <div>
                 <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-6 flex items-center gap-2"><BarChart2 size={16} className="text-blue-600"/> Gastos Mayores (Top 5)</h2>
                 <div className="space-y-3">
                   {spendingTable.length > 0 ? spendingTable.map(([cat, val], i) => (
                     <div key={i} className="relative bg-white p-3.5 rounded-xl border border-slate-100 overflow-hidden shadow-sm">
-                      {/* Fondo de progreso de gasto en línea */}
                       <div className="absolute left-0 top-0 bottom-0 rounded-l-lg" style={{ width: `${(val/expenses)*100}%`, backgroundColor: 'rgba(255, 228, 230, 0.4)' }}></div>
                       <div className="relative z-10 flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -316,11 +309,7 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
                         </div>
                       </div>
                     </div>
-                  )) : (
-                     <div className="p-6 text-center border-2 border-dashed border-slate-200 rounded-2xl">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Sin salidas registradas</p>
-                    </div>
-                  )}
+                  )) : <p className="text-[10px] font-bold text-slate-400 text-center p-4">Sin salidas registradas</p>}
                 </div>
               </div>
 
@@ -343,27 +332,29 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
               </div>
             </div>
 
-            {/* SECCIÓN 5: FONDO DE EMERGENCIA Y AUDITORÍA */}
+            {/* SECCIÓN 5: RESERVA */}
             <div className="pt-10 border-t border-slate-200 print-break-avoid">
               <h2 className="text-xs font-black text-blue-900 uppercase tracking-widest mb-6 flex items-center gap-2"><Shield size={16} className="text-blue-600"/> Reserva y Salud Financiera</h2>
-              
               <div className="grid grid-cols-3 gap-8">
                 <div className="text-white p-6 rounded-2xl shadow-lg flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: '#0f172a' }}>
                   <Shield size={80} className="absolute -right-4 -bottom-4 opacity-10" />
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-3">Fondo de Emergencia</span>
                   <span className="text-4xl font-black text-white">{fUSD(emergencyFund.current)}</span>
                 </div>
-
                 <div className="col-span-2 grid grid-cols-2 gap-6">
-                  <AuditBox title="Status Liquidez" value={fUSD(emergencyFund.current)} desc={emergencyFund.current > (expenses * 3) ? "Excelente cobertura." : "Aumentar reserva."} />
-                  <AuditBox title="Eficiencia Ahorro" value={fPct(savingsRate).replace('+', '')} desc={savingsRate > 20 ? "Óptimo." : "Revisar gastos."} />
+                  <div className="p-5 bg-slate-50 border border-slate-100 rounded-xl">
+                    <h4 className="text-[11px] font-black uppercase text-slate-900 mb-1 tracking-widest">Status Liquidez</h4>
+                    <p className="text-[9px] text-slate-500 font-bold leading-relaxed">{emergencyFund.current > (expenses * 3) ? "Excelente cobertura (3+ meses)." : "Se recomienda aumentar reserva."}</p>
+                  </div>
+                  <div className="p-5 bg-slate-50 border border-slate-100 rounded-xl">
+                    <h4 className="text-[11px] font-black uppercase text-slate-900 mb-1 tracking-widest">Eficiencia Ahorro</h4>
+                    <p className="text-[9px] text-slate-500 font-bold leading-relaxed">{savingsRate > 20 ? "Óptimo margen de capitalización." : "Revisar optimización de gastos."}</p>
+                  </div>
                 </div>
               </div>
             </div>
-
           </div>
-
-          <div className="text-white/50 text-center py-4 text-[7px] uppercase tracking-[0.4em] font-black italic border-t border-slate-800" style={{ backgroundColor: '#0f172a' }}>
+          <div className="text-white/50 text-center py-4 text-[7px] uppercase tracking-[0.4em] font-black border-t border-slate-800" style={{ backgroundColor: '#0f172a' }}>
             Documento Confidencial • Generado Automáticamente por Finanza360
           </div>
         </div>
@@ -374,22 +365,11 @@ export const FinancialReport: React.FC<FinancialReportProps> = ({
 
 const KPICol = ({ title, value, desc, color, icon, highlight = false }: any) => (
   <div className="text-center p-2 border border-transparent hover:border-slate-100 hover:bg-slate-50 transition-all rounded-2xl">
-    <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-white shadow-lg" style={{ backgroundColor: color }}>
+    <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 text-white shadow-lg`} style={{ backgroundColor: color }}>
       {icon}
     </div>
-    <p className={`text-2xl font-black tracking-tighter ${highlight ? 'text-teal-600' : 'text-slate-900'}`}>{value}</p>
+    <p className={`text-2xl font-black ${highlight ? 'text-teal-600' : 'text-slate-900'}`}>{value}</p>
     <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5">{title}</h3>
     <p className="text-[8px] text-slate-400 font-bold mt-0.5 uppercase leading-tight">{desc}</p>
-  </div>
-);
-
-const AuditBox = ({ title, value, desc }: any) => (
-  <div className="flex gap-4 items-start p-5 bg-white border border-slate-100 shadow-sm relative overflow-hidden h-full rounded-xl">
-    <div className="absolute top-0 right-0 p-2 opacity-5"><Target size={40}/></div>
-    <div className="p-2.5 rounded-xl shrink-0 text-blue-600" style={{ backgroundColor: '#eff6ff' }}><Shield size={20}/></div>
-    <div>
-      <h4 className="text-[11px] font-black uppercase text-slate-900 mb-1 tracking-widest">{title}: <span className="text-blue-600">{value}</span></h4>
-      <p className="text-[9px] text-slate-500 font-bold leading-relaxed">{desc}</p>
-    </div>
   </div>
 );

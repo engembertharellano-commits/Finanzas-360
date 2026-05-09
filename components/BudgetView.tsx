@@ -66,10 +66,15 @@ export const BudgetView: React.FC<Props> = ({
         const currentMonthBudget = budgets.find(
           (b) => b.category === cat && b.month === selectedMonth
         );
-        if (currentMonthBudget) return currentMonthBudget;
+        
+        // Si existe un presupuesto este mes y su límite es -1, significa que fue eliminado
+        if (currentMonthBudget) {
+          if (currentMonthBudget.limit === -1) return null;
+          return currentMonthBudget;
+        }
 
         const pastBudgets = budgets
-          .filter((b) => b.category === cat && b.month < selectedMonth)
+          .filter((b) => b.category === cat && b.month < selectedMonth && b.limit >= 0)
           .sort((a, b) => b.month.localeCompare(a.month));
 
         return pastBudgets[0];
@@ -208,10 +213,10 @@ export const BudgetView: React.FC<Props> = ({
   const handleRemoveBudget = (b: any) => {
     if (b.isHistorical) {
       // Si es histórico, para "eliminarlo" en el mes actual sin tocar el pasado,
-      // creamos un registro de límite 0 para este mes.
+      // creamos un registro con límite -1 para este mes.
       onAdd({
         category: b.category,
-        limit: 0,
+        limit: -1,
         currency: b.currency,
         month: selectedMonth
       });

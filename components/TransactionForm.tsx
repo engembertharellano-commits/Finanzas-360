@@ -52,14 +52,13 @@ export const TransactionForm: React.FC<Props> = ({
     selectedAccount && targetAccount && 
     selectedAccount.currency !== targetAccount.currency;
 
-  // FUNCIÓN DE NORMALIZACIÓN PARA ASEGURAR COINCIDENCIA DE CATEGORÍAS
   const superNormalize = (text: string) => 
     text?.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || "";
 
-  // LÓGICA PARA MOSTRAR EL RESTANTE EN EL SELECTOR (CON BÚSQUEDA ROBUSTA)
+  // LÓGICA CON SOPORTE PARA PRESUPUESTOS HEREDADOS ("FIJOS")
   const categoryBudgets = useMemo(() => {
     const currentCategories = type === 'Gasto' ? expenseCategories : incomeCategories;
-    const searchMonth = selectedMonth.substring(0, 7); // Solo YYYY-MM
+    const searchMonth = selectedMonth.substring(0, 7); 
     
     if (!Array.isArray(budgets) || !Array.isArray(transactions)) {
       return currentCategories.map(cat => ({ cat, remaining: null, currency: null }));
@@ -68,13 +67,24 @@ export const TransactionForm: React.FC<Props> = ({
     return currentCategories.map(cat => {
       const normCat = superNormalize(cat);
       
-      const budget = budgets.find(b => 
+      // 1. Buscamos primero el presupuesto del mes actual
+      let budget = budgets.find(b => 
         superNormalize(b.category) === normCat && 
         b.month.substring(0, 7) === searchMonth
       );
       
+      // 2. Si no hay del mes actual, buscamos el heredado más reciente (lógica FIJO)
+      if (!budget) {
+        const pastBudgets = budgets
+          .filter(b => superNormalize(b.category) === normCat && b.month.substring(0, 7) < searchMonth)
+          .sort((a, b) => b.month.localeCompare(a.month)); // Orden descendente
+        
+        budget = pastBudgets[0]; // Tomamos el más reciente de los pasados
+      }
+      
       if (!budget) return { cat, remaining: null, currency: null };
 
+      // 3. Calculamos lo gastado SIEMPRE en base al mes actual
       const rawSpent = transactions
         .filter(t => 
           t.date && 
@@ -84,9 +94,9 @@ export const TransactionForm: React.FC<Props> = ({
         )
         .reduce((acc, t) => {
           const amountToApply = t.type === 'Ingreso' ? -t.amount : t.amount;
-          if (t.currency === budget.currency) return acc + amountToApply;
+          if (t.currency === budget!.currency) return acc + amountToApply;
           
-          return acc + (budget.currency === 'VES' 
+          return acc + (budget!.currency === 'VES' 
             ? (t.currency === 'USD' ? amountToApply * globalExchangeRate : amountToApply)
             : (t.currency === 'VES' ? amountToApply / globalExchangeRate : amountToApply)
           );
@@ -101,7 +111,6 @@ export const TransactionForm: React.FC<Props> = ({
     });
   }, [budgets, transactions, selectedMonth, globalExchangeRate, expenseCategories, incomeCategories, type]);
 
-  // ✅ Cargar los datos iniciales si estamos editando
   useEffect(() => {
     if (initialData) {
       setDescription(initialData.description || '');
@@ -127,7 +136,6 @@ export const TransactionForm: React.FC<Props> = ({
   }, [initialData]);
 
   useEffect(() => {
-    // Si estamos editando y no hemos cambiado el tipo, mantenemos la categoría original
     if (initialData && initialData.type === type) {
       setCategory(initialData.category || '');
       return;
@@ -155,7 +163,7 @@ export const TransactionForm: React.FC<Props> = ({
         setManualRate(calculatedRate.toFixed(4));
       }
     }
-  }, [isBimonetary, selectedAccount?.currency]);
+  }, [isBimonetary, selectedAccount?.currency, targetAmount]);
 
   useEffect(() => {
     if (isBimonetary) updateConversion(amount, manualRate, 'amount');

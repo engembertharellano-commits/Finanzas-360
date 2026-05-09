@@ -10,7 +10,7 @@ import {
 import { ArrowRight, RefreshCcw, DollarSign, Settings2, Plus, Minus, Briefcase, Users } from 'lucide-react';
 
 interface Props {
-  initialData?: Transaction;
+  initialData?: Transaction; // ✅ AÑADIDO: Recibe datos si está en modo edición
   onAdd: (transaction: Omit<Transaction, 'id'>) => void;
   accounts: BankAccount[];
   budgets: Budget[];
@@ -52,37 +52,34 @@ export const TransactionForm: React.FC<Props> = ({
     selectedAccount && targetAccount && 
     selectedAccount.currency !== targetAccount.currency;
 
-  // FUNCIÓN DE LIMPIEZA DE TEXTO (Quita acentos y espacios)
-  const normalize = (text: string) => 
-    text.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  // FUNCIÓN DE NORMALIZACIÓN PARA ASEGURAR COINCIDENCIA DE CATEGORÍAS
+  const superNormalize = (text: string) => 
+    text?.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || "";
 
-  // LÓGICA DE BÚSQUEDA ROBUSTA
+  // LÓGICA PARA MOSTRAR EL RESTANTE EN EL SELECTOR (CON BÚSQUEDA ROBUSTA)
   const categoryBudgets = useMemo(() => {
     const currentCategories = type === 'Gasto' ? expenseCategories : incomeCategories;
+    const searchMonth = selectedMonth.substring(0, 7); // Solo YYYY-MM
     
-    // Normalizamos el mes de búsqueda a formato YYYY-MM
-    const searchMonth = selectedMonth.substring(0, 7);
-
     if (!Array.isArray(budgets) || !Array.isArray(transactions)) {
       return currentCategories.map(cat => ({ cat, remaining: null, currency: null }));
     }
 
     return currentCategories.map(cat => {
-      const normalizedCat = normalize(cat);
-
-      // Buscamos el presupuesto comparando solo Año-Mes
+      const normCat = superNormalize(cat);
+      
       const budget = budgets.find(b => 
-        normalize(b.category) === normalizedCat && 
+        superNormalize(b.category) === normCat && 
         b.month.substring(0, 7) === searchMonth
       );
-
+      
       if (!budget) return { cat, remaining: null, currency: null };
 
       const rawSpent = transactions
         .filter(t => 
           t.date && 
           t.date.startsWith(searchMonth) && 
-          normalize(t.category) === normalizedCat && 
+          superNormalize(t.category) === normCat && 
           (t.type === 'Gasto' || t.type === 'Ingreso')
         )
         .reduce((acc, t) => {
@@ -104,6 +101,7 @@ export const TransactionForm: React.FC<Props> = ({
     });
   }, [budgets, transactions, selectedMonth, globalExchangeRate, expenseCategories, incomeCategories, type]);
 
+  // ✅ Cargar los datos iniciales si estamos editando
   useEffect(() => {
     if (initialData) {
       setDescription(initialData.description || '');
@@ -129,6 +127,7 @@ export const TransactionForm: React.FC<Props> = ({
   }, [initialData]);
 
   useEffect(() => {
+    // Si estamos editando y no hemos cambiado el tipo, mantenemos la categoría original
     if (initialData && initialData.type === type) {
       setCategory(initialData.category || '');
       return;
@@ -156,7 +155,7 @@ export const TransactionForm: React.FC<Props> = ({
         setManualRate(calculatedRate.toFixed(4));
       }
     }
-  }, [isBimonetary, selectedAccount?.currency, targetAmount]);
+  }, [isBimonetary, selectedAccount?.currency]);
 
   useEffect(() => {
     if (isBimonetary) updateConversion(amount, manualRate, 'amount');
@@ -201,6 +200,7 @@ export const TransactionForm: React.FC<Props> = ({
           {initialData ? 'Editar Operación' : 'Nueva Operación'}
         </h3>
         
+        {/* Selector de Fondo */}
         <div className="flex bg-slate-100 p-1 rounded-2xl w-full md:w-auto overflow-x-auto">
           <button 
             type="button" 

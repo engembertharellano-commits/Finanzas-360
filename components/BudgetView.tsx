@@ -78,25 +78,30 @@ export const BudgetView: React.FC<Props> = ({
   }, [budgets, selectedMonth]);
 
   const budgetsWithSpent = useMemo(() => {
-    // Se incluyen tanto Gastos como Ingresos para permitir el efecto de reembolso
     const monthTransactions = transactions.filter(
       (t) => t.date.startsWith(selectedMonth) && (t.type === 'Gasto' || t.type === 'Ingreso')
     );
 
     return activeBudgets
       .map((b) => {
-        const spent = monthTransactions
+        const rawSpent = monthTransactions
           .filter((t) => t.category === b.category)
           .reduce((acc, t) => {
-            // Si es Gasto suma, si es Ingreso resta (reembolso)
             const amountToApply = t.type === 'Ingreso' ? -t.amount : t.amount;
             
             if (t.currency === b.currency) return acc + amountToApply;
-            return acc + (t.currency === 'USD' ? amountToApply * exchangeRate : amountToApply / exchangeRate);
+            
+            // Si el presupuesto es VES y la transacción USD, multiplicamos. Si no, dividimos.
+            return acc + (b.currency === 'VES' 
+              ? (t.currency === 'USD' ? amountToApply * exchangeRate : amountToApply)
+              : (t.currency === 'VES' ? amountToApply / exchangeRate : amountToApply)
+            );
           }, 0);
 
+        // Bloqueamos en 0 para evitar visualización de negativos por reembolsos excedentes
+        const spent = Math.max(0, rawSpent);
         const limit = b.limit || 0;
-        // Si el límite es 0, cualquier gasto (spent > 0) disparará el 999%
+        
         const percentageRaw = limit > 0 ? (spent / limit) * 100 : (spent > 0 ? 999 : 0);
         const percentage = Math.max(0, Math.min(percentageRaw, 999));
         const isOver = spent > limit;
@@ -189,7 +194,6 @@ export const BudgetView: React.FC<Props> = ({
     e.preventDefault();
 
     const safeLimit = Number(newBudget.limit);
-    // Ahora permite 0 o valores mayores
     if (!Number.isFinite(safeLimit) || safeLimit < 0) return;
 
     onAdd({

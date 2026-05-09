@@ -91,14 +91,12 @@ export const BudgetView: React.FC<Props> = ({
             
             if (t.currency === b.currency) return acc + amountToApply;
             
-            // Si el presupuesto es VES y la transacción USD, multiplicamos. Si no, dividimos.
             return acc + (b.currency === 'VES' 
               ? (t.currency === 'USD' ? amountToApply * exchangeRate : amountToApply)
               : (t.currency === 'VES' ? amountToApply / exchangeRate : amountToApply)
             );
           }, 0);
 
-        // Bloqueamos en 0 para evitar visualización de negativos por reembolsos excedentes
         const spent = Math.max(0, rawSpent);
         const limit = b.limit || 0;
         
@@ -204,6 +202,23 @@ export const BudgetView: React.FC<Props> = ({
     });
 
     resetForm();
+  };
+
+  // LÓGICA DE ELIMINACIÓN MEJORADA
+  const handleRemoveBudget = (b: any) => {
+    if (b.isHistorical) {
+      // Si es histórico, para "eliminarlo" en el mes actual sin tocar el pasado,
+      // creamos un registro de límite 0 para este mes.
+      onAdd({
+        category: b.category,
+        limit: 0,
+        currency: b.currency,
+        month: selectedMonth
+      });
+    } else {
+      // Si es un presupuesto real de este mes, lo borramos normalmente
+      onDelete(b.id);
+    }
   };
 
   const [year, month] = selectedMonth.split('-').map(Number);
@@ -544,15 +559,13 @@ export const BudgetView: React.FC<Props> = ({
                         <Pencil size={18} />
                       </button>
 
-                      {!b.isHistorical && (
-                        <button
-                          onClick={() => onDelete(b.id)}
-                          className="p-3 text-slate-400 hover:text-rose-500 transition-all bg-slate-50 hover:bg-rose-50 rounded-2xl"
-                          title="Eliminar presupuesto"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => handleRemoveBudget(b)}
+                        className="p-3 text-slate-400 hover:text-rose-500 transition-all bg-slate-50 hover:bg-rose-50 rounded-2xl"
+                        title={b.isHistorical ? "Ocultar en este mes" : "Eliminar presupuesto"}
+                      >
+                        <Trash2 size={18} />
+                      </button>
                     </div>
                   </div>
                 </div>

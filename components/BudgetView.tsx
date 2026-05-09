@@ -78,8 +78,9 @@ export const BudgetView: React.FC<Props> = ({
   }, [budgets, selectedMonth]);
 
   const budgetsWithSpent = useMemo(() => {
+    // Se incluyen tanto Gastos como Ingresos para permitir el efecto de reembolso
     const monthTransactions = transactions.filter(
-      (t) => t.date.startsWith(selectedMonth) && t.type === 'Gasto'
+      (t) => t.date.startsWith(selectedMonth) && (t.type === 'Gasto' || t.type === 'Ingreso')
     );
 
     return activeBudgets
@@ -87,15 +88,19 @@ export const BudgetView: React.FC<Props> = ({
         const spent = monthTransactions
           .filter((t) => t.category === b.category)
           .reduce((acc, t) => {
-            if (t.currency === b.currency) return acc + t.amount;
-            return acc + (t.currency === 'USD' ? t.amount * exchangeRate : t.amount / exchangeRate);
+            // Si es Gasto suma, si es Ingreso resta (reembolso)
+            const amountToApply = t.type === 'Ingreso' ? -t.amount : t.amount;
+            
+            if (t.currency === b.currency) return acc + amountToApply;
+            return acc + (t.currency === 'USD' ? amountToApply * exchangeRate : amountToApply / exchangeRate);
           }, 0);
 
         const limit = b.limit || 0;
-        const percentageRaw = (spent / (limit || 1)) * 100;
-        const percentage = Math.min(percentageRaw, 999);
+        // Si el límite es 0, cualquier gasto (spent > 0) disparará el 999%
+        const percentageRaw = limit > 0 ? (spent / limit) * 100 : (spent > 0 ? 999 : 0);
+        const percentage = Math.max(0, Math.min(percentageRaw, 999));
         const isOver = spent > limit;
-        const isWarning = percentage >= 80 && !isOver;
+        const isWarning = limit > 0 && percentage >= 80 && !isOver;
         const isHistorical = b.month !== selectedMonth;
         const remaining = Math.max(0, limit - spent);
 
@@ -184,7 +189,8 @@ export const BudgetView: React.FC<Props> = ({
     e.preventDefault();
 
     const safeLimit = Number(newBudget.limit);
-    if (!Number.isFinite(safeLimit) || safeLimit <= 0) return;
+    // Ahora permite 0 o valores mayores
+    if (!Number.isFinite(safeLimit) || safeLimit < 0) return;
 
     onAdd({
       category: newBudget.category,
@@ -366,7 +372,7 @@ export const BudgetView: React.FC<Props> = ({
                   min="0"
                   className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none outline-none focus:ring-2 focus:ring-indigo-500 font-black text-lg"
                   placeholder="0.00"
-                  value={Number.isFinite(newBudget.limit) && newBudget.limit > 0 ? newBudget.limit : ''}
+                  value={newBudget.limit}
                   onChange={(e) =>
                     setNewBudget({
                       ...newBudget,

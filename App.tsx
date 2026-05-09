@@ -960,6 +960,7 @@ const App: React.FC = () => {
               <TransactionsLog
                 transactions={transactions}
                 accounts={accounts}
+                budgets={budgets}
                 onAdd={handleAddTransaction}
                 onUpdate={handleUpdateTransaction}
                 onDelete={handleDeleteTransaction}

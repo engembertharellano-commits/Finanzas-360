@@ -52,21 +52,28 @@ export const TransactionForm: React.FC<Props> = ({
     selectedAccount && targetAccount && 
     selectedAccount.currency !== targetAccount.currency;
 
-  // LÓGICA MEJORADA: Búsqueda insensible a mayúsculas y espacios
+  // FUNCIÓN DE LIMPIEZA DE TEXTO (Quita acentos y espacios)
+  const normalize = (text: string) => 
+    text.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  // LÓGICA DE BÚSQUEDA ROBUSTA
   const categoryBudgets = useMemo(() => {
     const currentCategories = type === 'Gasto' ? expenseCategories : incomeCategories;
     
+    // Normalizamos el mes de búsqueda a formato YYYY-MM
+    const searchMonth = selectedMonth.substring(0, 7);
+
     if (!Array.isArray(budgets) || !Array.isArray(transactions)) {
       return currentCategories.map(cat => ({ cat, remaining: null, currency: null }));
     }
 
     return currentCategories.map(cat => {
-      // Normalizamos el nombre para la búsqueda: minúsculas y sin espacios extra
-      const normalizedCat = cat.trim().toLowerCase();
+      const normalizedCat = normalize(cat);
 
+      // Buscamos el presupuesto comparando solo Año-Mes
       const budget = budgets.find(b => 
-        b.category.trim().toLowerCase() === normalizedCat && 
-        b.month === selectedMonth
+        normalize(b.category) === normalizedCat && 
+        b.month.substring(0, 7) === searchMonth
       );
 
       if (!budget) return { cat, remaining: null, currency: null };
@@ -74,8 +81,8 @@ export const TransactionForm: React.FC<Props> = ({
       const rawSpent = transactions
         .filter(t => 
           t.date && 
-          t.date.startsWith(selectedMonth) && 
-          t.category.trim().toLowerCase() === normalizedCat && 
+          t.date.startsWith(searchMonth) && 
+          normalize(t.category) === normalizedCat && 
           (t.type === 'Gasto' || t.type === 'Ingreso')
         )
         .reduce((acc, t) => {

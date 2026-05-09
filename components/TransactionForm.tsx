@@ -10,19 +10,19 @@ import {
 import { ArrowRight, RefreshCcw, DollarSign, Settings2, Plus, Minus, Briefcase, Users } from 'lucide-react';
 
 interface Props {
-  initialData?: Transaction; // ✅ AÑADIDO: Recibe datos si está en modo edición
+  initialData?: Transaction;
   onAdd: (transaction: Omit<Transaction, 'id'>) => void;
   accounts: BankAccount[];
-  budgets: Budget[]; // NUEVO
-  transactions: Transaction[]; // NUEVO
-  selectedMonth: string; // NUEVO
+  budgets: Budget[]; // Este es el que está llegando undefined según el error
+  transactions: Transaction[]; 
+  selectedMonth: string;
   globalExchangeRate: number;
   expenseCategories: string[];
   incomeCategories: string[];
 }
 
 export const TransactionForm: React.FC<Props> = ({ 
-  initialData, onAdd, accounts, budgets, transactions, selectedMonth, globalExchangeRate, expenseCategories, incomeCategories 
+  initialData, onAdd, accounts, budgets = [], transactions = [], selectedMonth, globalExchangeRate, expenseCategories, incomeCategories 
 }) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState<string>('');
@@ -52,16 +52,22 @@ export const TransactionForm: React.FC<Props> = ({
     selectedAccount && targetAccount && 
     selectedAccount.currency !== targetAccount.currency;
 
-  // LÓGICA PARA MOSTRAR EL RESTANTE EN EL SELECTOR
+  // LÓGICA CON SALVAGUARDA (PROTECCIÓN CONTRA PANTALLA GRIS)
   const categoryBudgets = useMemo(() => {
     const currentCategories = type === 'Gasto' ? expenseCategories : incomeCategories;
     
+    // Si budgets o transactions no vienen, o no son arrays, evitamos el error
+    if (!Array.isArray(budgets) || !Array.isArray(transactions)) {
+      return currentCategories.map(cat => ({ cat, remaining: null, currency: null }));
+    }
+
     return currentCategories.map(cat => {
+      // .find() ya no fallará porque aseguramos que budgets es un array
       const budget = budgets.find(b => b.category === cat && b.month === selectedMonth);
       if (!budget) return { cat, remaining: null, currency: null };
 
       const rawSpent = transactions
-        .filter(t => t.date.startsWith(selectedMonth) && t.category === cat && (t.type === 'Gasto' || t.type === 'Ingreso'))
+        .filter(t => t.date && t.date.startsWith(selectedMonth) && t.category === cat && (t.type === 'Gasto' || t.type === 'Ingreso'))
         .reduce((acc, t) => {
           const amountToApply = t.type === 'Ingreso' ? -t.amount : t.amount;
           if (t.currency === budget.currency) return acc + amountToApply;
@@ -81,7 +87,6 @@ export const TransactionForm: React.FC<Props> = ({
     });
   }, [budgets, transactions, selectedMonth, globalExchangeRate, expenseCategories, incomeCategories, type]);
 
-  // ✅ AÑADIDO: Cargar los datos iniciales si estamos editando
   useEffect(() => {
     if (initialData) {
       setDescription(initialData.description || '');
@@ -107,7 +112,6 @@ export const TransactionForm: React.FC<Props> = ({
   }, [initialData]);
 
   useEffect(() => {
-    // Si estamos editando y no hemos cambiado el tipo, mantenemos la categoría original
     if (initialData && initialData.type === type) {
       setCategory(initialData.category || '');
       return;

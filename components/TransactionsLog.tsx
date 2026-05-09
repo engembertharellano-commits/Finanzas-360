@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Transaction, BankAccount } from '../types';
+import { Transaction, BankAccount, Budget } from '../types';
 import { TransactionForm } from './TransactionForm';
 import { Search, ArrowUpCircle, ArrowDownCircle, RefreshCcw, Trash2, Edit2, Briefcase, Users } from 'lucide-react';
 
 interface Props {
   transactions: Transaction[];
   accounts: BankAccount[];
+  budgets: Budget[]; // AÑADIDO
   onAdd: (t: Omit<Transaction, 'id'>) => void;
   onUpdate: (t: Transaction) => void; // AÑADIDO: Prop para actualizar
   onDelete: (id: string) => void;
@@ -16,7 +17,7 @@ interface Props {
 }
 
 export const TransactionsLog: React.FC<Props> = ({ 
-  transactions, accounts, onAdd, onUpdate, onDelete, selectedMonth, exchangeRate, expenseCategories, incomeCategories 
+  transactions, accounts, budgets, onAdd, onUpdate, onDelete, selectedMonth, exchangeRate, expenseCategories, incomeCategories 
 }) => {
 
   const [filter, setFilter] = useState<string>('');
@@ -108,6 +109,9 @@ export const TransactionsLog: React.FC<Props> = ({
               setEditingTransaction(null); // Limpia la edición
             }} 
             accounts={accounts}
+            budgets={budgets} // NUEVO: Se envía para calcular el restante
+            transactions={transactions} // NUEVO: Se envía para calcular el restante
+            selectedMonth={selectedMonth} // NUEVO: Se envía para filtrar el mes
             globalExchangeRate={exchangeRate}
             expenseCategories={expenseCategories}
             incomeCategories={incomeCategories}
@@ -192,7 +196,7 @@ export const TransactionsLog: React.FC<Props> = ({
                           ? 'text-red-500'
                           : 'text-black'
                       }`}>
-                        ${t.amount.toFixed(2)}
+                        {t.currency === 'USD' ? '$' : 'Bs. '}{t.amount.toFixed(2)}
                       </p>
                     </td>
 

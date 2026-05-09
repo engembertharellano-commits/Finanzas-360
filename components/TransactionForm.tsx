@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Transaction, 
   Category, 
   TransactionType, 
   Currency,
-  BankAccount
+  BankAccount,
+  Budget
 } from '../types';
 import { ArrowRight, RefreshCcw, DollarSign, Settings2, Plus, Minus, Briefcase, Users } from 'lucide-react';
 
@@ -12,13 +13,16 @@ interface Props {
   initialData?: Transaction; // ✅ AÑADIDO: Recibe datos si está en modo edición
   onAdd: (transaction: Omit<Transaction, 'id'>) => void;
   accounts: BankAccount[];
+  budgets: Budget[]; // NUEVO
+  transactions: Transaction[]; // NUEVO
+  selectedMonth: string; // NUEVO
   globalExchangeRate: number;
   expenseCategories: string[];
   incomeCategories: string[];
 }
 
 export const TransactionForm: React.FC<Props> = ({ 
-  initialData, onAdd, accounts, globalExchangeRate, expenseCategories, incomeCategories 
+  initialData, onAdd, accounts, budgets, transactions, selectedMonth, globalExchangeRate, expenseCategories, incomeCategories 
 }) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState<string>('');
@@ -47,6 +51,35 @@ export const TransactionForm: React.FC<Props> = ({
   const isBimonetary = type === 'Transferencia' && 
     selectedAccount && targetAccount && 
     selectedAccount.currency !== targetAccount.currency;
+
+  // LÓGICA PARA MOSTRAR EL RESTANTE EN EL SELECTOR
+  const categoryBudgets = useMemo(() => {
+    const currentCategories = type === 'Gasto' ? expenseCategories : incomeCategories;
+    
+    return currentCategories.map(cat => {
+      const budget = budgets.find(b => b.category === cat && b.month === selectedMonth);
+      if (!budget) return { cat, remaining: null, currency: null };
+
+      const rawSpent = transactions
+        .filter(t => t.date.startsWith(selectedMonth) && t.category === cat && (t.type === 'Gasto' || t.type === 'Ingreso'))
+        .reduce((acc, t) => {
+          const amountToApply = t.type === 'Ingreso' ? -t.amount : t.amount;
+          if (t.currency === budget.currency) return acc + amountToApply;
+          
+          return acc + (budget.currency === 'VES' 
+            ? (t.currency === 'USD' ? amountToApply * globalExchangeRate : amountToApply)
+            : (t.currency === 'VES' ? amountToApply / globalExchangeRate : amountToApply)
+          );
+        }, 0);
+
+      const spent = Math.max(0, rawSpent);
+      return {
+        cat,
+        remaining: Math.max(0, budget.limit - spent),
+        currency: budget.currency
+      };
+    });
+  }, [budgets, transactions, selectedMonth, globalExchangeRate, expenseCategories, incomeCategories, type]);
 
   // ✅ AÑADIDO: Cargar los datos iniciales si estamos editando
   useEffect(() => {
@@ -147,7 +180,6 @@ export const TransactionForm: React.FC<Props> = ({
           {initialData ? 'Editar Operación' : 'Nueva Operación'}
         </h3>
         
-        {/* Selector de Fondo */}
         <div className="flex bg-slate-100 p-1 rounded-2xl w-full md:w-auto overflow-x-auto">
           <button 
             type="button" 
@@ -203,7 +235,6 @@ export const TransactionForm: React.FC<Props> = ({
           ))}
         </div>
 
-        {/* ✅ AÑADIDO: Input de Fecha dentro del grid para que se pueda modificar */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Fecha</label>
@@ -258,8 +289,10 @@ export const TransactionForm: React.FC<Props> = ({
               className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 font-bold"
               required
             >
-              {(type === 'Gasto' ? expenseCategories : incomeCategories).map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
+              {categoryBudgets.map(({ cat, remaining, currency }) => (
+                <option key={cat} value={cat}>
+                  {cat} {remaining !== null ? `(Restan: ${currency === 'USD' ? '$' : 'Bs. '}${remaining.toLocaleString()})` : '(Sin límite)'}
+                </option>
               ))}
             </select>
           </div>

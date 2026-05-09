@@ -13,7 +13,7 @@ interface Props {
   initialData?: Transaction;
   onAdd: (transaction: Omit<Transaction, 'id'>) => void;
   accounts: BankAccount[];
-  budgets: Budget[]; // Este es el que está llegando undefined según el error
+  budgets: Budget[];
   transactions: Transaction[]; 
   selectedMonth: string;
   globalExchangeRate: number;
@@ -52,22 +52,32 @@ export const TransactionForm: React.FC<Props> = ({
     selectedAccount && targetAccount && 
     selectedAccount.currency !== targetAccount.currency;
 
-  // LÓGICA CON SALVAGUARDA (PROTECCIÓN CONTRA PANTALLA GRIS)
+  // LÓGICA MEJORADA: Búsqueda insensible a mayúsculas y espacios
   const categoryBudgets = useMemo(() => {
     const currentCategories = type === 'Gasto' ? expenseCategories : incomeCategories;
     
-    // Si budgets o transactions no vienen, o no son arrays, evitamos el error
     if (!Array.isArray(budgets) || !Array.isArray(transactions)) {
       return currentCategories.map(cat => ({ cat, remaining: null, currency: null }));
     }
 
     return currentCategories.map(cat => {
-      // .find() ya no fallará porque aseguramos que budgets es un array
-      const budget = budgets.find(b => b.category === cat && b.month === selectedMonth);
+      // Normalizamos el nombre para la búsqueda: minúsculas y sin espacios extra
+      const normalizedCat = cat.trim().toLowerCase();
+
+      const budget = budgets.find(b => 
+        b.category.trim().toLowerCase() === normalizedCat && 
+        b.month === selectedMonth
+      );
+
       if (!budget) return { cat, remaining: null, currency: null };
 
       const rawSpent = transactions
-        .filter(t => t.date && t.date.startsWith(selectedMonth) && t.category === cat && (t.type === 'Gasto' || t.type === 'Ingreso'))
+        .filter(t => 
+          t.date && 
+          t.date.startsWith(selectedMonth) && 
+          t.category.trim().toLowerCase() === normalizedCat && 
+          (t.type === 'Gasto' || t.type === 'Ingreso')
+        )
         .reduce((acc, t) => {
           const amountToApply = t.type === 'Ingreso' ? -t.amount : t.amount;
           if (t.currency === budget.currency) return acc + amountToApply;

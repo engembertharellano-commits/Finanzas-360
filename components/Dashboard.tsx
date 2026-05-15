@@ -271,27 +271,27 @@ return {
           {/* SALDO ACTUAL TOTAL */}
           <div className="rounded-[2.8rem] border border-emerald-300/80 bg-white shadow-[0_20px_60px_-35px_rgba(16,185,129,0.45)] overflow-hidden">
             <div className="grid grid-cols-1 xl:grid-cols-[1.05fr_0.95fr] gap-0">
-              <div className="p-8 md:p-9 border-b xl:border-b-0 xl:border-r border-slate-100">
-                <div className="flex items-start gap-5">
-                  <div className="w-24 h-24 rounded-[2rem] bg-emerald-950 text-emerald-300 flex items-center justify-center shadow-[0_18px_35px_-18px_rgba(5,150,105,0.75)] shrink-0">
-                    <Wallet size={40} />
+              <div className="p-6 md:p-7 border-b xl:border-b-0 xl:border-r border-slate-100">
+                <div className="flex items-start gap-4">
+                  <div className="w-16 h-16 rounded-[1.5rem] bg-emerald-950 text-emerald-300 flex items-center justify-center shadow-[0_12px_25px_-12px_rgba(5,150,105,0.75)] shrink-0">
+                    <Wallet size={28} />
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap mb-3">
-                      <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-700">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">
                         Saldo actual total
                       </p>
-                      <Info size={16} className="text-slate-300" />
+                      <Info size={14} className="text-slate-300" />
                     </div>
 
-                    <h3 className="text-5xl md:text-6xl font-black tracking-tighter text-emerald-950 leading-none">
+                    <h3 className="text-4xl md:text-5xl font-black tracking-tighter text-emerald-950 leading-none">
                       {formatMoney(currentTotalUSD, 'USD')}
                     </h3>
 
-                    <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700">
-                      <RefreshCw size={14} />
-                      <span className="text-sm font-black">
+                    <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700">
+                      <RefreshCw size={12} />
+                      <span className="text-[11px] font-black">
                         Equivalente: {formatMoney(currentTotalVES, 'VES')}
                       </span>
                     </div>
@@ -299,48 +299,48 @@ return {
                 </div>
               </div>
 
-              <div className="p-8 md:p-9">
-                <div className="flex items-center justify-between gap-3 mb-6">
-                  <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">
+              <div className="p-6 md:p-7">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
                     Desglose
                   </p>
 
                   <button
                     onClick={() => setShowBalanceDetail(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-100 font-black text-sm hover:bg-emerald-100 transition-colors"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 font-black text-[11px] hover:bg-emerald-100 transition-colors"
                   >
-                    <Eye size={16} />
+                    <Eye size={14} />
                     Ver detalle
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-slate-50 rounded-[2rem] px-5 py-5 border border-slate-100">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                        <Landmark size={24} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-slate-50 rounded-2xl px-4 py-4 border border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                        <Landmark size={18} />
                       </div>
                       <div>
-                        <p className="text-sm font-black text-slate-700">
-                          Liquidez disponible
+                        <p className="text-[11px] font-black text-slate-500 uppercase tracking-tight">
+                          Liquidez
                         </p>
-                        <p className="text-3xl font-black text-emerald-700 mt-1">
+                        <p className="text-xl font-black text-emerald-700 mt-0.5">
                           {formatMoney(currentLiquidOwnUSD, 'USD')}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 rounded-[2rem] px-5 py-5 border border-slate-100">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-2xl bg-violet-100 text-violet-700 flex items-center justify-center">
-                        <TrendingUp size={24} />
+                  <div className="bg-slate-50 rounded-2xl px-4 py-4 border border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center">
+                        <TrendingUp size={18} />
                       </div>
                       <div>
-                        <p className="text-sm font-black text-slate-700">
+                        <p className="text-[11px] font-black text-slate-500 uppercase tracking-tight">
                           Invertido
                         </p>
-                        <p className="text-3xl font-black text-violet-700 mt-1">
+                        <p className="text-xl font-black text-violet-700 mt-0.5">
                           {formatMoney(totalInvestedUSD, 'USD')}
                         </p>
                       </div>
@@ -397,62 +397,54 @@ return {
               </svg>
             </div>
 
-            <div className="relative z-10 p-8 md:p-10 lg:p-12">
-              <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 items-start">
+            <div className="relative z-10 p-6 md:p-8">
+              <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-6 items-start">
                 <div>
-                  <div className="flex items-start gap-5">
-                    <div className="w-24 h-24 rounded-full border border-emerald-400/40 bg-emerald-500/10 flex items-center justify-center shadow-[0_0_40px_rgba(16,185,129,0.25)] shrink-0">
-                      <Wallet size={40} className="text-emerald-300" />
+                  <div className="flex items-start gap-4">
+                    <div className="w-16 h-16 rounded-full border border-emerald-400/40 bg-emerald-500/10 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.25)] shrink-0">
+                      <Wallet size={28} className="text-emerald-300" />
                     </div>
 
                     <div className="min-w-0">
-                      <p className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-300 mb-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-300 mb-2">
                         Balance {monthName}
                       </p>
 
-                      <h3 className={`text-5xl md:text-6xl lg:text-7xl font-black tracking-tighter leading-none ${balanceAccentClasses}`}>
+                      <h3 className={`text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-none ${balanceAccentClasses}`}>
                         {netResult >= 0 ? '+' : ''}{formatValue(netResult)}
                       </h3>
 
-                      <div className={`inline-flex items-center gap-2 mt-5 px-4 py-2 rounded-full border text-sm font-black ${balanceBadgeClasses}`}>
-                        {netResult >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                        {netResult >= 0 ? 'Resultado positivo este mes' : 'Resultado negativo este mes'}
+                      <div className={`inline-flex items-center gap-2 mt-4 px-3 py-1.5 rounded-full border text-[11px] font-black ${balanceBadgeClasses}`}>
+                        {netResult >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                        {netResult >= 0 ? 'Positivo' : 'Negativo'}
                       </div>
-
-                      <p className="mt-5 text-base md:text-lg text-slate-300 max-w-[560px] leading-relaxed">
-                        Tus ingresos superan a tus gastos en{' '}
-                        <span className="font-black text-white">
-                          {formatValue(Math.abs(netResult))}
-                        </span>{' '}
-                        después de todas las transacciones personales del mes.
-                      </p>
                     </div>
                   </div>
 
-                  <div className="mt-8 pt-7 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-400/20 flex items-center justify-center">
-                        <TrendingUp size={24} className="text-emerald-300" />
+                  <div className="mt-6 pt-5 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-400/20 flex items-center justify-center">
+                        <TrendingUp size={18} className="text-emerald-300" />
                       </div>
                       <div>
-                        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">
-                          Ingresos Totales
+                        <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-0.5">
+                          Ingresos
                         </p>
-                        <p className="text-3xl font-black text-white">
+                        <p className="text-xl font-black text-white">
                           {formatValue(totalIncomeNormalized)}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-full bg-rose-500/10 border border-rose-400/20 flex items-center justify-center">
-                        <TrendingDown size={24} className="text-rose-300" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-rose-500/10 border border-rose-400/20 flex items-center justify-center">
+                        <TrendingDown size={18} className="text-rose-300" />
                       </div>
                       <div>
-                        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">
-                          Gastos Totales
+                        <p className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-0.5">
+                          Gastos
                         </p>
-                        <p className="text-3xl font-black text-white">
+                        <p className="text-xl font-black text-white">
                           {formatValue(totalExpenseNormalized)}
                         </p>
                       </div>

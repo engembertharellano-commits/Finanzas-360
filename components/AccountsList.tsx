@@ -466,22 +466,22 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
                               </div>
                             </div>
                           ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                              <div className="flex flex-col">
+                            <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+                              <div className="flex flex-col min-w-[120px]">
                                 <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest mb-0.5">Deuda Actual</span>
                                 <span className={`text-base font-black leading-tight ${usagePct >= 85 ? 'text-rose-600' : 'text-slate-900'}`}>
                                   {formatAmount(currentDebt, acc.currency)}
                                 </span>
                               </div>
                               
-                              <div className="flex flex-col">
+                              <div className="flex flex-col min-w-[120px]">
                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Crédito Disponible</span>
-                                <span className="text-[13px] font-black text-emerald-600 leading-tight">
+                                <span className="text-base font-black text-emerald-600 leading-tight">
                                   {formatAmount(availableCredit, acc.currency)}
                                 </span>
                               </div>
 
-                              <div className="md:col-span-2 space-y-1.5">
+                              <div className="flex-1 min-w-[180px] space-y-1.5">
                                 <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-widest">
                                   <span className="text-slate-400">Uso: {usagePct.toFixed(1)}%</span>
                                   <span className="text-slate-400">Límite: {formatAmount(creditLimit, acc.currency)}</span>

@@ -124,6 +124,7 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
       ...newAcc,
       id: editingId || crypto.randomUUID(),
       balance: isCredit ? -Math.abs(parsedBalance) : parsedBalance,
+      ...(isCredit
         ? {
             creditLimit: Math.max(0, parsedLimit),
             closingDay: parsedClosingDay,

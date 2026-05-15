@@ -95,6 +95,7 @@ const getGroupAccent = (type: AccountType) => {
 export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDelete }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [payingCardId, setPayingCardId] = useState<string | null>(null); // Nuevo: para el pago rápido
   const [paymentData, setPaymentData] = useState({ fromAccountId: '', amount: 0 });
 
@@ -502,24 +503,13 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
                         {/* Detalles Adicionales y Acciones */}
                         <div className="flex items-center gap-3 justify-between lg:justify-end">
                           {isCredit && (
-                            <div className="hidden xl:flex items-center gap-4 border-l border-slate-100 pl-4 mr-2">
-                               <div className="flex flex-col">
-                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Corte</span>
-                                 <span className="text-[10px] font-bold text-slate-700">Día {acc.closingDay}</span>
-                               </div>
-                               <div className="flex flex-col">
-                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Pago</span>
-                                 <span className="text-[10px] font-bold text-slate-700">Día {acc.dueDay}</span>
-                               </div>
-                               {acc.annualInterestRate && (
-                                 <div className="flex flex-col">
-                                   <span className="text-[8px] font-black text-rose-400 uppercase tracking-widest">Interés</span>
-                                   <span className="text-[10px] font-black text-rose-600">
-                                     {formatAmount((currentDebt * (acc.annualInterestRate / 100)) / 12, acc.currency)}
-                                   </span>
-                                 </div>
-                               )}
-                            </div>
+                            <button
+                              onClick={() => setExpandedCardId(expandedCardId === acc.id ? null : acc.id)}
+                              className={`p-2 rounded-lg transition-all ${expandedCardId === acc.id ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-100'}`}
+                              title="Ver detalles de fechas e intereses"
+                            >
+                              <Info size={16} className={expandedCardId === acc.id ? 'animate-pulse' : ''} />
+                            </button>
                           )}
 
                           <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -549,6 +539,46 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
                           </div>
                         </div>
                       </div>
+
+                      {/* Sección Expandible de Detalles (Solo para Crédito) */}
+                      {isCredit && expandedCardId === acc.id && (
+                        <div className="mt-3 p-4 bg-slate-50 rounded-2xl border border-slate-200 animate-in slide-in-from-top-2 duration-200">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            <div className="flex flex-col">
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Día de Corte</span>
+                              <div className="flex items-center gap-2">
+                                <CalendarDays size={14} className="text-blue-500" />
+                                <span className="text-xs font-black text-slate-700 underline decoration-blue-200 decoration-2 underline-offset-4">Día {acc.closingDay}</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Límite de Pago</span>
+                              <div className="flex items-center gap-2">
+                                <CalendarDays size={14} className="text-rose-500" />
+                                <span className="text-xs font-black text-slate-700 underline decoration-rose-200 decoration-2 underline-offset-4">Día {acc.dueDay}</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Tasa Anual</span>
+                              <div className="flex items-center gap-2">
+                                <TrendingUp size={14} className="text-slate-400" />
+                                <span className="text-xs font-black text-slate-700">{acc.annualInterestRate ? `${acc.annualInterestRate}%` : 'No definida'}</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest mb-1">Interés Proyectado</span>
+                              <div className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                                <span className="text-xs font-black text-rose-600">
+                                  {acc.annualInterestRate 
+                                    ? formatAmount((currentDebt * (acc.annualInterestRate / 100)) / 12, acc.currency)
+                                    : 'N/A'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Modal de Pago Rápido - Integrado y elegante */}
                       {payingCardId === acc.id && (

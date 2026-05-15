@@ -289,7 +289,11 @@ export const Auth: React.FC<Props> = ({ onSelectUser }) => {
       };
 
       // Guardar en nube (clave para cross-device)
-      await saveCloudUser(newUser);
+      try {
+        await saveCloudUser(newUser);
+      } catch (cloudErr) {
+        console.warn('No se pudo guardar en nube, continuando en modo local:', cloudErr);
+      }
 
       // Guardar local + sesión
       upsertLocalUser(newUser);

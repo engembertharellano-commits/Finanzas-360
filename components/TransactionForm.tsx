@@ -188,7 +188,8 @@ export const TransactionForm: React.FC<Props> = ({
       isWorkRelated: fundType === 'work',
       workStatus: fundType === 'work' ? 'pending' : undefined,
       isThirdParty: fundType === 'thirdParty',
-      thirdPartyOwner: fundType === 'thirdParty' ? thirdPartyOwner : undefined
+      thirdPartyOwner: fundType === 'thirdParty' ? thirdPartyOwner : undefined,
+      isCashAdvance: type === 'Transferencia' && selectedAccount?.type === 'Tarjeta de Crédito'
     });
 
     if (!initialData) {
@@ -300,12 +301,27 @@ export const TransactionForm: React.FC<Props> = ({
         )}
 
         {type === 'Transferencia' && (
-          <div className="flex flex-col gap-1 animate-in slide-in-from-left-2">
-            <label className="text-[10px] font-black uppercase text-blue-600 ml-1">Destino</label>
-            <select value={toAccountId} onChange={(e) => setToAccountId(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-blue-200 bg-blue-50 font-bold text-blue-700" required>
-              <option value="">Selecciona destino</option>
-              {accounts.filter(a => a.id !== accountId).map(acc => <option key={acc.id} value={acc.id}>{acc.name} ({acc.type})</option>)}
-            </select>
+          <div className="space-y-4 animate-in slide-in-from-left-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-black uppercase text-blue-600 ml-1">Cuenta de Destino</label>
+              <select value={toAccountId} onChange={(e) => setToAccountId(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-blue-200 bg-blue-50 font-bold text-blue-700" required>
+                <option value="">Selecciona destino</option>
+                {accounts.filter(a => a.id !== accountId).map(acc => <option key={acc.id} value={acc.id}>{acc.name} ({acc.type})</option>)}
+              </select>
+            </div>
+            
+            {selectedAccount?.type === 'Tarjeta de Crédito' && (
+              <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3">
+                <div className="p-2 bg-white rounded-xl text-rose-500 shadow-sm">
+                   <RefreshCcw size={18} className="animate-spin-slow" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-rose-700 uppercase tracking-widest">Operación Detectada</p>
+                  <p className="text-sm font-black text-rose-900">Avance de Efectivo</p>
+                  <p className="text-[9px] font-bold text-rose-500 uppercase mt-0.5">Se retirará de tu límite de crédito</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -329,14 +345,27 @@ export const TransactionForm: React.FC<Props> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Monto</label>
-            <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full px-4 py-3 rounded-xl border border-slate-200 font-black text-lg" required />
+            <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
+              {type === 'Gasto' && selectedAccount?.type === 'Tarjeta de Crédito' ? 'Monto del Consumo' : 'Monto'}
+            </label>
+            <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="w-full px-4 py-3 rounded-xl border border-slate-200 font-black text-lg focus:ring-2 focus:ring-blue-500 outline-none" required />
+            
+            {selectedAccount?.type === 'Tarjeta de Crédito' && (
+              <div className="flex items-center justify-between px-1 mt-1">
+                <span className="text-[9px] font-bold text-slate-400 uppercase">
+                  Disponible: {selectedAccount.currency} {(selectedAccount.creditLimit! - Math.abs(selectedAccount.balance)).toLocaleString()}
+                </span>
+                {parseFloat(amount) > (selectedAccount.creditLimit! - Math.abs(selectedAccount.balance)) && (
+                   <span className="text-[9px] font-black text-rose-600 uppercase animate-bounce">¡Excede el límite!</span>
+                )}
+              </div>
+            )}
           </div>
           {type !== 'Ajuste' && (
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black uppercase text-rose-500 ml-1">Comisión</label>
+              <label className="text-[10px] font-black uppercase text-rose-500 ml-1">Comisión / Fee</label>
               <div className="relative">
-                <input type="number" step="0.01" value={commission} onChange={(e) => setCommission(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-rose-100 bg-rose-50/30 text-rose-600 font-black" />
+                <input type="number" step="0.01" value={commission} onChange={(e) => setCommission(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-rose-100 bg-rose-50/30 text-rose-600 font-black focus:ring-2 focus:ring-rose-500 outline-none" />
                 <DollarSign size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-rose-300" />
               </div>
             </div>
@@ -347,29 +376,34 @@ export const TransactionForm: React.FC<Props> = ({
            <div className="p-6 bg-amber-50 rounded-2xl border border-amber-100 space-y-4">
               <div className="flex justify-between items-center">
                 <label className="text-[10px] font-black uppercase text-amber-600">Tasa de Cambio</label>
-                <input type="number" step="0.0001" value={manualRate} onChange={(e) => setManualRate(e.target.value)} className="w-32 px-3 py-1.5 rounded-lg border-none bg-white font-black text-right" />
+                <input type="number" step="0.0001" value={manualRate} onChange={(e) => setManualRate(e.target.value)} className="w-32 px-3 py-1.5 rounded-lg border-none bg-white font-black text-right shadow-sm focus:ring-2 focus:ring-amber-500 outline-none" />
               </div>
               <div className="flex justify-between items-center">
                 <label className="text-[10px] font-black uppercase text-amber-600">Llega al Destino ({targetAccount?.currency})</label>
-                <input type="number" value={targetAmount} onChange={(e) => { setTargetAmount(e.target.value); updateConversion(amount, manualRate, 'target'); }} className="w-32 px-3 py-1.5 rounded-lg border-none bg-white font-black text-right" />
+                <input type="number" value={targetAmount} onChange={(e) => { setTargetAmount(e.target.value); updateConversion(amount, manualRate, 'target'); }} className="w-32 px-3 py-1.5 rounded-lg border-none bg-white font-black text-right shadow-sm focus:ring-2 focus:ring-amber-500 outline-none" />
               </div>
            </div>
         )}
 
         <button 
           type="submit" 
+          disabled={selectedAccount?.type === 'Tarjeta de Crédito' && parseFloat(amount) > (selectedAccount.creditLimit! - Math.abs(selectedAccount.balance))}
           className={`w-full font-black py-4 rounded-2xl shadow-xl flex items-center justify-center gap-2 transition-all ${
-            initialData ? 'bg-blue-600' : fundType === 'work' ? 'bg-indigo-600' : fundType === 'thirdParty' ? 'bg-emerald-600' : 'bg-slate-900'
-          } text-white`}
+            parseFloat(amount) > (selectedAccount?.type === 'Tarjeta de Crédito' ? (selectedAccount.creditLimit! - Math.abs(selectedAccount.balance)) : Infinity)
+              ? 'bg-slate-300 cursor-not-allowed'
+              : initialData ? 'bg-blue-600' : fundType === 'work' ? 'bg-indigo-600' : fundType === 'thirdParty' ? 'bg-emerald-600' : 'bg-slate-900'
+          } text-white hover:scale-[1.02] active:scale-[0.98]`}
         >
           <ArrowRight size={20} />
           {initialData 
             ? 'Guardar Cambios' 
-            : fundType === 'work' 
-              ? 'Registrar en Pote Trabajo' 
-              : fundType === 'thirdParty' 
-                ? `Guardar Dinero de ${thirdPartyOwner || 'Terceros'}` 
-                : 'Confirmar Movimiento'}
+            : type === 'Transferencia' && selectedAccount?.type === 'Tarjeta de Crédito'
+              ? 'Realizar Avance de Efectivo'
+              : fundType === 'work' 
+                ? 'Registrar en Pote Trabajo' 
+                : fundType === 'thirdParty' 
+                  ? `Guardar Dinero de ${thirdPartyOwner || 'Terceros'}` 
+                  : 'Confirmar Movimiento'}
         </button>
       </div>
     </form>

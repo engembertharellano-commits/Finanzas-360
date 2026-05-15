@@ -33,6 +33,7 @@ export interface BankAccount {
   creditLimit?: number;
   closingDay?: number;
   dueDay?: number;
+  annualInterestRate?: number; // Nueva tasa de interés anual
 }
 
 export interface Transaction {
@@ -65,6 +66,9 @@ export interface Transaction {
   // Terceros (tu naming actual)
   isThirdParty?: boolean;
   thirdPartyOwner?: string;
+
+  // 💳 Crédito: Avance de efectivo
+  isCashAdvance?: boolean;
 
   // Compatibilidad extra (por si algún componente usa otro naming)
   isThirdPartyMoney?: boolean;

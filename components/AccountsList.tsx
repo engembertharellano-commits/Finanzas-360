@@ -10,7 +10,8 @@ import {
   Smartphone,
   BarChart2,
   CalendarDays,
-  AlertCircle
+  AlertCircle,
+  TrendingUp
 } from 'lucide-react';
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
   onAdd: (acc: BankAccount) => void;
   onUpdate: (acc: BankAccount) => void;
   onDelete: (id: string) => void;
+  onAddTransaction: (t: any) => void; // Para registrar el pago
 }
 
 const ACCOUNT_TYPE_ORDER: AccountType[] = [
@@ -93,6 +95,9 @@ const getGroupAccent = (type: AccountType) => {
 export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDelete }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [payingCardId, setPayingCardId] = useState<string | null>(null); // Nuevo: para el pago rápido
+  const [paymentData, setPaymentData] = useState({ fromAccountId: '', amount: 0 });
+
   const [newAcc, setNewAcc] = useState({
     name: '',
     type: 'Ahorros' as AccountType,
@@ -101,7 +106,8 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
     color: '#3b82f6',
     creditLimit: 0,
     closingDay: 1,
-    dueDay: 1
+    dueDay: 1,
+    annualInterestRate: 0
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -118,16 +124,17 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
       ...newAcc,
       id: editingId || crypto.randomUUID(),
       balance: isCredit ? -Math.abs(parsedBalance) : parsedBalance,
-      ...(isCredit
         ? {
             creditLimit: Math.max(0, parsedLimit),
             closingDay: parsedClosingDay,
-            dueDay: parsedDueDay
+            dueDay: parsedDueDay,
+            annualInterestRate: Number(newAcc.annualInterestRate) || 0
           }
         : {
             creditLimit: undefined,
             closingDay: undefined,
-            dueDay: undefined
+            dueDay: undefined,
+            annualInterestRate: undefined
           })
     };
 
@@ -150,7 +157,8 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
       color: acc.color || '#3b82f6',
       creditLimit: acc.creditLimit || 0,
       closingDay: acc.closingDay || 1,
-      dueDay: acc.dueDay || 1
+      dueDay: acc.dueDay || 1,
+      annualInterestRate: acc.annualInterestRate || 0
     });
     setShowForm(true);
   };
@@ -166,8 +174,31 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
       color: '#3b82f6',
       creditLimit: 0,
       closingDay: 1,
-      dueDay: 1
+      dueDay: 1,
+      annualInterestRate: 0
     });
+  };
+
+  const handleQuickPayment = (e: React.FormEvent) => {
+    e.preventDefault();
+    const card = accounts.find(a => a.id === payingCardId);
+    const fromAcc = accounts.find(a => a.id === paymentData.fromAccountId);
+    
+    if (!card || !fromAcc || paymentData.amount <= 0) return;
+
+    onAddTransaction({
+      description: `Pago de Tarjeta: ${card.name}`,
+      amount: paymentData.amount,
+      type: 'Transferencia',
+      category: 'Pago Tarjeta',
+      date: new Date().toISOString().split('T')[0],
+      currency: card.currency,
+      accountId: fromAcc.id,
+      toAccountId: card.id
+    });
+
+    setPayingCardId(null);
+    setPaymentData({ fromAccountId: '', amount: 0 });
   };
 
   const getAccountIcon = (type: AccountType) => {
@@ -353,6 +384,28 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
                   required
                 />
               </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
+                  Tasa de Interés Anual (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="Ej. 24.0"
+                  className="px-4 py-3 rounded-xl border border-slate-200 outline-none"
+                  value={newAcc.annualInterestRate}
+                  onChange={(e) =>
+                    setNewAcc({
+                      ...newAcc,
+                      annualInterestRate: e.target.value === '' ? 0 : parseFloat(e.target.value)
+                    })
+                  }
+                />
+                <p className="text-[9px] text-slate-400 mt-1">
+                  Tasa anual para cálculo de intereses proyectados.
+                </p>
+              </div>
             </div>
           )}
 
@@ -466,25 +519,25 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
 
                         {!isCredit ? (
                           <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="bg-slate-50 rounded-2xl px-4 py-3">
+                            <div className="bg-slate-50 rounded-2xl px-4 py-3 border border-slate-100">
                               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                {isBroker ? 'Disponible para invertir' : 'Efectivo / Caja'}
+                                {isBroker ? 'Disponible para invertir' : 'Saldo Disponible'}
                               </p>
                               <p className="text-2xl font-black text-slate-900">
                                 {formatAmount(acc.balance, acc.currency)}
                               </p>
                             </div>
 
-                            <div className="bg-slate-50 rounded-2xl px-4 py-3">
+                            <div className="bg-slate-50 rounded-2xl px-4 py-3 border border-slate-100">
                               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                Tipo
+                                Tipo de Cuenta
                               </p>
                               <p className="text-lg font-black text-slate-900">{acc.type}</p>
                             </div>
 
-                            <div className="bg-slate-50 rounded-2xl px-4 py-3">
+                            <div className="bg-slate-50 rounded-2xl px-4 py-3 border border-slate-100">
                               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                Estado
+                                Estado Operativo
                               </p>
                               <div className="flex items-center gap-2">
                                 {isBroker && (
@@ -505,19 +558,19 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
                                 >
                                   {isBroker
                                     ? acc.balance > 0
-                                      ? 'Disponible para invertir'
-                                      : 'Sin fondos para invertir'
-                                    : 'Operativa'}
+                                      ? 'Fondos Activos'
+                                      : 'Sin fondos'
+                                    : 'Cuenta Activa'}
                                 </p>
                               </div>
                             </div>
                           </div>
                         ) : (
-                          <div className="flex-1 space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              <div className="bg-slate-50 rounded-2xl px-4 py-3">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                  Deuda actual
+                          <div className="flex-1 space-y-5">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="bg-rose-50/30 rounded-2xl px-5 py-4 border border-rose-100/50">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-1">
+                                  Deuda Actual
                                 </p>
                                 <p
                                   className={`text-2xl font-black ${
@@ -526,81 +579,153 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
                                 >
                                   {formatAmount(currentDebt, acc.currency)}
                                 </p>
+                                <p className="text-[9px] font-bold text-rose-400 mt-1 uppercase">Dinero por pagar</p>
                               </div>
 
-                              <div className="bg-slate-50 rounded-2xl px-4 py-3">
+                              <div className="bg-slate-50 rounded-2xl px-5 py-4 border border-slate-100">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                  Límite
+                                  Límite Total
                                 </p>
                                 <p className="text-xl font-black text-slate-900">
                                   {formatAmount(creditLimit, acc.currency)}
                                 </p>
+                                <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">Capacidad total</p>
                               </div>
 
-                              <div className="bg-slate-50 rounded-2xl px-4 py-3">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
+                              <div className="bg-emerald-50/30 rounded-2xl px-5 py-4 border border-emerald-100/50">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-1">
                                   Disponible
                                 </p>
-                                <p className="text-xl font-black text-slate-900">
+                                <p className="text-xl font-black text-emerald-700">
                                   {formatAmount(availableCredit, acc.currency)}
                                 </p>
+                                <p className="text-[9px] font-bold text-emerald-500 mt-1 uppercase">Crédito libre</p>
                               </div>
                             </div>
 
-                            <div className="space-y-2">
-                              <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="space-y-2.5 px-1">
+                              <div className="h-3 bg-slate-100 rounded-full overflow-hidden shadow-inner border border-slate-200/50">
                                 <div
-                                  className={`h-full transition-all ${
-                                    usagePct >= 85 ? 'bg-rose-500' : 'bg-blue-500'
+                                  className={`h-full transition-all duration-700 ease-out ${
+                                    usagePct >= 85 ? 'bg-rose-500' : usagePct >= 50 ? 'bg-amber-500' : 'bg-emerald-500'
                                   }`}
                                   style={{ width: `${usagePct}%` }}
                                 />
                               </div>
-                              <div className="flex items-center justify-between text-[11px] font-bold">
+                              <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-tighter">
                                 <span className={usagePct >= 85 ? 'text-rose-600' : 'text-slate-500'}>
-                                  Uso del límite: {usagePct.toFixed(0)}%
+                                  Uso del crédito: {usagePct.toFixed(1)}%
                                 </span>
-                                <span className="text-slate-500">{formatAmount(availableCredit, acc.currency)} disponibles</span>
+                                <span className="text-slate-400">Total: {formatAmount(creditLimit, acc.currency)}</span>
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 bg-slate-50 rounded-xl px-3 py-2">
-                                <CalendarDays size={14} />
-                                Fecha de corte: día {acc.closingDay ?? '-'}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="flex items-center gap-3 text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2.5">
+                                <CalendarDays size={14} className="text-slate-400" />
+                                <span>Corte: <span className="text-slate-900">Día {acc.closingDay ?? '-'}</span></span>
                               </div>
-                              <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600 bg-slate-50 rounded-xl px-3 py-2">
-                                <CalendarDays size={14} />
-                                Fecha de pago: día {acc.dueDay ?? '-'}
+                              <div className="flex items-center gap-3 text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2.5">
+                                <CalendarDays size={14} className="text-slate-400" />
+                                <span>Pago: <span className="text-slate-900">Día {acc.dueDay ?? '-'}</span></span>
                               </div>
                             </div>
 
                             {usagePct >= 85 && (
-                              <div className="flex items-center gap-2 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">
-                                <AlertCircle size={14} />
-                                Uso alto del límite.
+                              <div className="flex items-center gap-3 text-[11px] font-black text-rose-700 bg-rose-50 border border-rose-100 rounded-2xl px-4 py-3 animate-pulse">
+                                <AlertCircle size={16} />
+                                <span className="uppercase tracking-widest">Alerta: Nivel de endeudamiento crítico</span>
                               </div>
+                            )}
+
+                            {currentDebt > 0 && acc.annualInterestRate ? (
+                              <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 bg-rose-50/50 border border-rose-100 rounded-2xl px-4 py-3 shadow-sm">
+                                <div className="flex items-center gap-2">
+                                  <TrendingUp size={14} className="text-rose-500" />
+                                  <span className="text-rose-700 uppercase tracking-tight">Interés Mensual Proyectado:</span>
+                                </div>
+                                <span className="text-rose-600 font-black text-sm">
+                                  {formatAmount((currentDebt * (acc.annualInterestRate / 100)) / 12, acc.currency)}
+                                </span>
+                              </div>
+                            ) : (
+                              <p className="text-[9px] text-slate-400 italic px-2">
+                                * Define una tasa de interés editando la tarjeta para ver proyecciones.
+                              </p>
                             )}
                           </div>
                         )}
 
-                        <div className="xl:w-auto flex items-center gap-1 xl:self-start">
+                        <div className="xl:w-auto flex flex-col sm:flex-row items-center gap-2 xl:self-start mt-2 xl:mt-0">
+                          {isCredit && currentDebt > 0 && (
+                            <button
+                              onClick={() => {
+                                setPayingCardId(acc.id);
+                                setPaymentData({ ...paymentData, amount: currentDebt });
+                              }}
+                              className="w-full sm:w-auto bg-emerald-600 text-white px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 flex items-center gap-2"
+                            >
+                              <Plus size={14} /> Pagar Tarjeta
+                            </button>
+                          )}
                           <button
                             onClick={() => handleEdit(acc)}
-                            className="p-3 text-slate-300 hover:text-blue-500 transition-all rounded-2xl hover:bg-blue-50"
+                            className="p-3.5 text-slate-400 hover:text-blue-600 transition-all rounded-2xl hover:bg-blue-50 border border-transparent hover:border-blue-100"
                             title="Editar cuenta"
                           >
                             <Edit2 size={18} />
                           </button>
                           <button
                             onClick={() => onDelete(acc.id)}
-                            className="p-3 text-slate-300 hover:text-rose-500 transition-all rounded-2xl hover:bg-rose-50"
+                            className="p-3.5 text-slate-400 hover:text-rose-600 transition-all rounded-2xl hover:bg-rose-50 border border-transparent hover:border-rose-100"
                             title="Eliminar cuenta"
                           >
                             <Trash2 size={18} />
                           </button>
                         </div>
                       </div>
+
+                      {/* Modal/Formulario de Pago Rápido */}
+                      {payingCardId === acc.id && (
+                        <div className="mt-6 p-6 bg-slate-900 rounded-[2rem] text-white animate-in zoom-in duration-300 shadow-2xl">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-emerald-400">Pago Rápido de Tarjeta</h4>
+                            <button onClick={() => setPayingCardId(null)} className="text-slate-500 hover:text-white">
+                              <Plus size={20} className="rotate-45" />
+                            </button>
+                          </div>
+                          <form onSubmit={handleQuickPayment} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[9px] font-black uppercase text-slate-500 ml-1">Pagar desde:</label>
+                              <select 
+                                required
+                                className="bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                                value={paymentData.fromAccountId}
+                                onChange={e => setPaymentData({ ...paymentData, fromAccountId: e.target.value })}
+                              >
+                                <option value="">Selecciona cuenta...</option>
+                                {accounts.filter(a => a.type !== 'Tarjeta de Crédito' && a.currency === acc.currency).map(a => (
+                                  <option key={a.id} value={a.id}>{a.name} ({formatAmount(a.balance, a.currency)})</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[9px] font-black uppercase text-slate-500 ml-1">Monto a pagar ({acc.currency}):</label>
+                              <input 
+                                type="number"
+                                step="0.01"
+                                required
+                                className="bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                                value={paymentData.amount}
+                                onChange={e => setPaymentData({ ...paymentData, amount: parseFloat(e.target.value) })}
+                              />
+                            </div>
+                            <button type="submit" className="bg-emerald-500 hover:bg-emerald-600 text-white font-black py-3 px-6 rounded-xl text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-emerald-900/20">
+                              Confirmar Pago
+                            </button>
+                          </form>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

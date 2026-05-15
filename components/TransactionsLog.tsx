@@ -180,6 +180,16 @@ export const TransactionsLog: React.FC<Props> = ({
 
                     <td className="px-10 py-6">
                       <p className="text-sm font-black text-slate-900">{t.description}</p>
+                      <div className="flex gap-2 mt-1">
+                        <span className="text-[9px] font-black uppercase bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+                          {t.category}
+                        </span>
+                        {t.isCashAdvance && (
+                          <span className="text-[9px] font-black uppercase bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <RefreshCcw size={10} className="animate-spin-slow" /> Avance
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     <td className="px-10 py-6">

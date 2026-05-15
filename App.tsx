@@ -953,7 +953,8 @@ const App: React.FC = () => {
                 accounts={accounts} 
                 onAdd={handleAddAccount} 
                 onUpdate={handleUpdateAccount}
-                onDelete={handleDeleteAccount} 
+                onDelete={handleDeleteAccount}
+                onAddTransaction={handleAddTransaction}
               />
             )}
             {activeView === 'transactions' && (

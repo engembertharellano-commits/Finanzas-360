@@ -234,36 +234,36 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
   }, [accounts]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center gap-4 flex-wrap">
+    <div className="space-y-4">
+      <div className="flex justify-between items-center gap-4 flex-wrap mb-2">
         <div>
-          <h2 className="text-2xl font-black text-slate-900">Bancos y Brokers</h2>
-          <p className="text-slate-500 text-sm font-medium">
-            Gestiona tu liquidez y tus plataformas de inversión
+          <h2 className="text-xl font-black text-slate-900 tracking-tight">Bancos y Brokers</h2>
+          <p className="text-slate-500 text-[11px] font-semibold uppercase tracking-wider">
+            Gestión de liquidez e inversión
           </p>
         </div>
 
         <button
           onClick={() => { if(showForm && editingId) handleCancel(); else setShowForm(!showForm); }}
-          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
         >
-          <Plus size={20} /> Nueva Cuenta
+          <Plus size={16} /> Nueva Cuenta
         </button>
       </div>
 
       {showForm && (
         <form
           onSubmit={handleSubmit}
-          className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-2xl animate-in fade-in zoom-in duration-300 space-y-6"
+          className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-xl animate-in fade-in zoom-in duration-300 space-y-4"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                Nombre Entidad / Broker
+              <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-widest">
+                Nombre Entidad
               </label>
               <input
-                placeholder="Ej. Banesco, Binance, Hapi..."
-                className="px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ej. Banesco, Hapi..."
+                className="px-3 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 text-sm font-medium"
                 value={newAcc.name}
                 onChange={(e) => setNewAcc({ ...newAcc, name: e.target.value })}
                 required
@@ -271,11 +271,11 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                Tipo de Cuenta
+              <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-widest">
+                Tipo
               </label>
               <select
-                className="px-4 py-3 rounded-xl border border-slate-200 outline-none bg-slate-50"
+                className="px-3 py-2 rounded-xl border border-slate-200 outline-none bg-slate-50 text-sm font-medium"
                 value={newAcc.type}
                 onChange={(e) => setNewAcc({ ...newAcc, type: e.target.value as AccountType })}
               >
@@ -289,14 +289,14 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
+              <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-widest">
                 {newAcc.type === 'Tarjeta de Crédito' ? 'Deuda Inicial' : 'Saldo Inicial'}
               </label>
               <input
                 type="number"
                 step="0.01"
                 placeholder="0.00"
-                className="px-4 py-3 rounded-xl border border-slate-200 outline-none"
+                className="px-3 py-2 rounded-xl border border-slate-200 outline-none text-sm font-medium"
                 value={newAcc.balance}
                 onChange={(e) =>
                   setNewAcc({
@@ -305,15 +305,12 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
                   })
                 }
               />
-              <p className="text-[9px] text-slate-400 mt-1">
-                Puedes dejarlo en 0 y fondearla después mediante transferencias.
-              </p>
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black uppercase text-slate-400 ml-1">Moneda</label>
+              <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-widest">Moneda</label>
               <select
-                className="px-4 py-3 rounded-xl border border-slate-200 outline-none bg-slate-50"
+                className="px-3 py-2 rounded-xl border border-slate-200 outline-none bg-slate-50 text-sm font-medium"
                 value={newAcc.currency}
                 onChange={(e) => setNewAcc({ ...newAcc, currency: e.target.value as Currency })}
               >
@@ -324,405 +321,270 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
           </div>
 
           {newAcc.type === 'Tarjeta de Crédito' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                  Límite de Crédito
-                </label>
+                <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-widest">Límite</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
-                  placeholder="Ej. 1000.00"
-                  className="px-4 py-3 rounded-xl border border-slate-200 outline-none"
+                  className="px-3 py-2 rounded-xl border border-slate-200 outline-none text-sm font-medium"
                   value={newAcc.creditLimit}
-                  onChange={(e) =>
-                    setNewAcc({
-                      ...newAcc,
-                      creditLimit: e.target.value === '' ? 0 : parseFloat(e.target.value)
-                    })
-                  }
+                  onChange={(e) => setNewAcc({ ...newAcc, creditLimit: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                   required
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                  Fecha de Corte (día)
-                </label>
+                <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-widest">Corte (día)</label>
                 <input
                   type="number"
                   min="1"
                   max="31"
-                  className="px-4 py-3 rounded-xl border border-slate-200 outline-none"
+                  className="px-3 py-2 rounded-xl border border-slate-200 outline-none text-sm font-medium"
                   value={newAcc.closingDay}
-                  onChange={(e) =>
-                    setNewAcc({
-                      ...newAcc,
-                      closingDay: e.target.value === '' ? 1 : parseInt(e.target.value, 10)
-                    })
-                  }
+                  onChange={(e) => setNewAcc({ ...newAcc, closingDay: e.target.value === '' ? 1 : parseInt(e.target.value, 10) })}
                   required
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                  Fecha de Pago (día)
-                </label>
+                <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-widest">Pago (día)</label>
                 <input
                   type="number"
                   min="1"
                   max="31"
-                  className="px-4 py-3 rounded-xl border border-slate-200 outline-none"
+                  className="px-3 py-2 rounded-xl border border-slate-200 outline-none text-sm font-medium"
                   value={newAcc.dueDay}
-                  onChange={(e) =>
-                    setNewAcc({
-                      ...newAcc,
-                      dueDay: e.target.value === '' ? 1 : parseInt(e.target.value, 10)
-                    })
-                  }
+                  onChange={(e) => setNewAcc({ ...newAcc, dueDay: e.target.value === '' ? 1 : parseInt(e.target.value, 10) })}
                   required
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-black uppercase text-slate-400 ml-1">
-                  Tasa de Interés Anual (%)
-                </label>
+                <label className="text-[9px] font-black uppercase text-slate-400 ml-1 tracking-widest">Interés (%)</label>
                 <input
                   type="number"
                   step="0.1"
-                  placeholder="Ej. 24.0"
-                  className="px-4 py-3 rounded-xl border border-slate-200 outline-none"
+                  className="px-3 py-2 rounded-xl border border-slate-200 outline-none text-sm font-medium"
                   value={newAcc.annualInterestRate}
-                  onChange={(e) =>
-                    setNewAcc({
-                      ...newAcc,
-                      annualInterestRate: e.target.value === '' ? 0 : parseFloat(e.target.value)
-                    })
-                  }
+                  onChange={(e) => setNewAcc({ ...newAcc, annualInterestRate: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
                 />
-                <p className="text-[9px] text-slate-400 mt-1">
-                  Tasa anual para cálculo de intereses proyectados.
-                </p>
               </div>
             </div>
           )}
 
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={handleCancel}
-              className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors"
+              className="px-4 py-2 rounded-xl font-bold text-[11px] uppercase tracking-widest text-slate-500 hover:bg-slate-100 transition-colors"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="bg-slate-900 text-white px-10 py-3 rounded-xl font-bold hover:bg-slate-800 transition-all shadow-xl"
+              className="bg-slate-900 text-white px-6 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg"
             >
-              {editingId ? 'Actualizar Cuenta' : 'Crear Cuenta'}
+              {editingId ? 'Actualizar' : 'Crear'}
             </button>
           </div>
         </form>
       )}
 
-      <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4">
         {groupedAccounts.map((group) => {
           const accent = getGroupAccent(group.type);
 
           return (
             <section
               key={group.type}
-              className="rounded-[2.5rem] overflow-hidden shadow-sm border border-slate-200 bg-white"
+              className="rounded-3xl overflow-hidden shadow-sm border border-slate-200 bg-white"
             >
-              <div className="relative px-6 md:px-8 py-5 bg-slate-900 text-white border-b border-slate-800">
-                <div className={`absolute inset-y-0 left-0 w-1.5 ${accent.bar}`} />
-                <div className="flex items-center justify-between gap-4 flex-wrap pl-2">
-                  <div className="flex items-center gap-4">
-                    <div className={`p-3.5 rounded-2xl ${accent.iconBg} ${accent.iconText} shadow-inner ring-1 ring-white/10`}>
-                      {getAccountIcon(group.type)}
-                    </div>
-
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <h3 className="text-lg font-black tracking-tight text-white">
-                        {group.type}
-                      </h3>
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.18em] shadow-sm ${accent.badge}`}>
-                        {group.items.length} {group.items.length === 1 ? 'cuenta' : 'cuentas'}
-                      </span>
-                    </div>
+              <div className="px-5 py-3 bg-slate-900 text-white flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${accent.iconBg} ${accent.iconText}`}>
+                    {getAccountIcon(group.type)}
                   </div>
-
-                  <div className="hidden md:flex items-center gap-2 text-white/70">
-                    <div className={`h-2 w-2 rounded-full ${accent.dot}`} />
-                    <span className="text-[10px] font-black uppercase tracking-[0.18em]">
-                      Grupo de cuentas
-                    </span>
-                  </div>
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white">
+                    {group.type}
+                  </h3>
+                  <span className="text-[9px] font-black bg-white/10 text-white/60 px-2 py-0.5 rounded-md uppercase">
+                    {group.items.length}
+                  </span>
                 </div>
               </div>
 
               <div className="divide-y divide-slate-100">
                 {group.items.map((acc) => {
                   const isCredit = acc.type === 'Tarjeta de Crédito';
-                  const isBroker = acc.type === 'Broker';
-
                   const currentDebt = isCredit ? Math.max(0, -acc.balance) : 0;
                   const creditLimit = isCredit ? Math.max(0, acc.creditLimit || 0) : 0;
                   const availableCredit = isCredit ? Math.max(0, creditLimit - currentDebt) : 0;
-                  const usagePct =
-                    isCredit && creditLimit > 0 ? Math.min((currentDebt / creditLimit) * 100, 100) : 0;
+                  const usagePct = isCredit && creditLimit > 0 ? Math.min((currentDebt / creditLimit) * 100, 100) : 0;
 
                   return (
                     <div
                       key={acc.id}
-                      className={`px-6 md:px-8 py-6 transition-colors ${
-                        isBroker ? 'bg-blue-50/20' : 'hover:bg-slate-50/60'
-                      }`}
+                      className="group px-5 py-3 hover:bg-slate-50/80 transition-all"
                     >
-                      <div className="flex flex-col xl:flex-row xl:items-center gap-5 xl:gap-8">
-                        <div className="min-w-0 xl:w-[280px]">
-                          <div className="flex items-center gap-4">
-                            <div
-                              className="p-3.5 rounded-2xl shrink-0"
-                              style={{
-                                backgroundColor: isBroker ? '#3b82f615' : `${acc.color}15`,
-                                color: isBroker ? '#3b82f6' : acc.color
-                              }}
-                            >
-                              {getAccountIcon(acc.type)}
-                            </div>
-
-                            <div className="min-w-0">
-                              <p className="text-lg font-black text-slate-900 truncate">{acc.name}</p>
-                              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                  {acc.currency}
-                                </span>
-
-                                {isBroker && (
-                                  <span className="text-[9px] font-black bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                                    Inversión
-                                  </span>
-                                )}
-
-                                {isCredit && usagePct >= 85 && (
-                                  <span className="text-[9px] font-black bg-rose-50 text-rose-600 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                                    Uso alto
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+                      <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                        {/* Identidad de Cuenta */}
+                        <div className="flex items-center gap-3 min-w-[200px]">
+                          <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
+                            style={{
+                              backgroundColor: `${acc.color || '#3b82f6'}15`,
+                              color: acc.color || '#3b82f6',
+                              border: `1px solid ${acc.color || '#3b82f6'}30`
+                            }}
+                          >
+                            {getAccountIcon(acc.type)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-black text-slate-900 truncate tracking-tight">{acc.name}</p>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{acc.currency}</span>
                           </div>
                         </div>
 
-                        {!isCredit ? (
-                          <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="bg-slate-50 rounded-2xl px-4 py-3 border border-slate-100">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                {isBroker ? 'Disponible para invertir' : 'Saldo Disponible'}
-                              </p>
-                              <p className="text-2xl font-black text-slate-900">
-                                {formatAmount(acc.balance, acc.currency)}
-                              </p>
-                            </div>
-
-                            <div className="bg-slate-50 rounded-2xl px-4 py-3 border border-slate-100">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                Tipo de Cuenta
-                              </p>
-                              <p className="text-lg font-black text-slate-900">{acc.type}</p>
-                            </div>
-
-                            <div className="bg-slate-50 rounded-2xl px-4 py-3 border border-slate-100">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                Estado Operativo
-                              </p>
-                              <div className="flex items-center gap-2">
-                                {isBroker && (
-                                  <div
-                                    className={`w-2 h-2 rounded-full ${
-                                      acc.balance > 0 ? 'bg-emerald-500' : 'bg-slate-300'
-                                    } animate-pulse`}
-                                  />
-                                )}
-                                <p
-                                  className={`text-sm font-black ${
-                                    isBroker
-                                      ? acc.balance > 0
-                                        ? 'text-blue-600'
-                                        : 'text-slate-400'
-                                      : 'text-slate-700'
-                                  }`}
-                                >
-                                  {isBroker
-                                    ? acc.balance > 0
-                                      ? 'Fondos Activos'
-                                      : 'Sin fondos'
-                                    : 'Cuenta Activa'}
-                                </p>
+                        {/* Información Financiera */}
+                        <div className="flex-1">
+                          {!isCredit ? (
+                            <div className="flex items-center gap-8">
+                              <div className="flex flex-col">
+                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Saldo Disponible</span>
+                                <span className="text-base font-black text-slate-900 leading-tight">
+                                  {formatAmount(acc.balance, acc.currency)}
+                                </span>
+                              </div>
+                              <div className="hidden sm:flex flex-col">
+                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Estado</span>
+                                <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                                  Activa
+                                </span>
                               </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="flex-1 space-y-5">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              <div className="bg-rose-50/30 rounded-2xl px-5 py-4 border border-rose-100/50">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-1">
-                                  Deuda Actual
-                                </p>
-                                <p
-                                  className={`text-2xl font-black ${
-                                    usagePct >= 85 ? 'text-rose-600' : 'text-slate-900'
-                                  }`}
-                                >
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                              <div className="flex flex-col">
+                                <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest mb-0.5">Deuda Actual</span>
+                                <span className={`text-base font-black leading-tight ${usagePct >= 85 ? 'text-rose-600' : 'text-slate-900'}`}>
                                   {formatAmount(currentDebt, acc.currency)}
-                                </p>
-                                <p className="text-[9px] font-bold text-rose-400 mt-1 uppercase">Dinero por pagar</p>
+                                </span>
                               </div>
-
-                              <div className="bg-slate-50 rounded-2xl px-5 py-4 border border-slate-100">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">
-                                  Límite Total
-                                </p>
-                                <p className="text-xl font-black text-slate-900">
-                                  {formatAmount(creditLimit, acc.currency)}
-                                </p>
-                                <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase">Capacidad total</p>
-                              </div>
-
-                              <div className="bg-emerald-50/30 rounded-2xl px-5 py-4 border border-emerald-100/50">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-1">
-                                  Disponible
-                                </p>
-                                <p className="text-xl font-black text-emerald-700">
+                              
+                              <div className="flex flex-col">
+                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Crédito Disponible</span>
+                                <span className="text-[13px] font-black text-emerald-600 leading-tight">
                                   {formatAmount(availableCredit, acc.currency)}
-                                </p>
-                                <p className="text-[9px] font-bold text-emerald-500 mt-1 uppercase">Crédito libre</p>
-                              </div>
-                            </div>
-
-                            <div className="space-y-2.5 px-1">
-                              <div className="h-3 bg-slate-100 rounded-full overflow-hidden shadow-inner border border-slate-200/50">
-                                <div
-                                  className={`h-full transition-all duration-700 ease-out ${
-                                    usagePct >= 85 ? 'bg-rose-500' : usagePct >= 50 ? 'bg-amber-500' : 'bg-emerald-500'
-                                  }`}
-                                  style={{ width: `${usagePct}%` }}
-                                />
-                              </div>
-                              <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-tighter">
-                                <span className={usagePct >= 85 ? 'text-rose-600' : 'text-slate-500'}>
-                                  Uso del crédito: {usagePct.toFixed(1)}%
                                 </span>
-                                <span className="text-slate-400">Total: {formatAmount(creditLimit, acc.currency)}</span>
                               </div>
-                            </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div className="flex items-center gap-3 text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2.5">
-                                <CalendarDays size={14} className="text-slate-400" />
-                                <span>Corte: <span className="text-slate-900">Día {acc.closingDay ?? '-'}</span></span>
-                              </div>
-                              <div className="flex items-center gap-3 text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2.5">
-                                <CalendarDays size={14} className="text-slate-400" />
-                                <span>Pago: <span className="text-slate-900">Día {acc.dueDay ?? '-'}</span></span>
-                              </div>
-                            </div>
-
-                            {usagePct >= 85 && (
-                              <div className="flex items-center gap-3 text-[11px] font-black text-rose-700 bg-rose-50 border border-rose-100 rounded-2xl px-4 py-3 animate-pulse">
-                                <AlertCircle size={16} />
-                                <span className="uppercase tracking-widest">Alerta: Nivel de endeudamiento crítico</span>
-                              </div>
-                            )}
-
-                            {currentDebt > 0 && acc.annualInterestRate ? (
-                              <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 bg-rose-50/50 border border-rose-100 rounded-2xl px-4 py-3 shadow-sm">
-                                <div className="flex items-center gap-2">
-                                  <TrendingUp size={14} className="text-rose-500" />
-                                  <span className="text-rose-700 uppercase tracking-tight">Interés Mensual Proyectado:</span>
+                              <div className="md:col-span-2 space-y-1.5">
+                                <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-widest">
+                                  <span className="text-slate-400">Uso: {usagePct.toFixed(1)}%</span>
+                                  <span className="text-slate-400">Límite: {formatAmount(creditLimit, acc.currency)}</span>
                                 </div>
-                                <span className="text-rose-600 font-black text-sm">
-                                  {formatAmount((currentDebt * (acc.annualInterestRate / 100)) / 12, acc.currency)}
-                                </span>
+                                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                                  <div
+                                    className={`h-full transition-all duration-700 ${
+                                      usagePct >= 85 ? 'bg-rose-500' : usagePct >= 50 ? 'bg-amber-500' : 'bg-emerald-500'
+                                    }`}
+                                    style={{ width: `${usagePct}%` }}
+                                  />
+                                </div>
                               </div>
-                            ) : (
-                              <p className="text-[9px] text-slate-400 italic px-2">
-                                * Define una tasa de interés editando la tarjeta para ver proyecciones.
-                              </p>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="xl:w-auto flex flex-col sm:flex-row items-center gap-2 xl:self-start mt-2 xl:mt-0">
-                          {isCredit && currentDebt > 0 && (
-                            <button
-                              onClick={() => {
-                                setPayingCardId(acc.id);
-                                setPaymentData({ ...paymentData, amount: currentDebt });
-                              }}
-                              className="w-full sm:w-auto bg-emerald-600 text-white px-5 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 flex items-center gap-2"
-                            >
-                              <Plus size={14} /> Pagar Tarjeta
-                            </button>
+                            </div>
                           )}
-                          <button
-                            onClick={() => handleEdit(acc)}
-                            className="p-3.5 text-slate-400 hover:text-blue-600 transition-all rounded-2xl hover:bg-blue-50 border border-transparent hover:border-blue-100"
-                            title="Editar cuenta"
-                          >
-                            <Edit2 size={18} />
-                          </button>
-                          <button
-                            onClick={() => onDelete(acc.id)}
-                            className="p-3.5 text-slate-400 hover:text-rose-600 transition-all rounded-2xl hover:bg-rose-50 border border-transparent hover:border-rose-100"
-                            title="Eliminar cuenta"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                        </div>
+
+                        {/* Detalles Adicionales y Acciones */}
+                        <div className="flex items-center gap-3 justify-between lg:justify-end">
+                          {isCredit && (
+                            <div className="hidden xl:flex items-center gap-4 border-l border-slate-100 pl-4 mr-2">
+                               <div className="flex flex-col">
+                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Corte</span>
+                                 <span className="text-[10px] font-bold text-slate-700">Día {acc.closingDay}</span>
+                               </div>
+                               <div className="flex flex-col">
+                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Pago</span>
+                                 <span className="text-[10px] font-bold text-slate-700">Día {acc.dueDay}</span>
+                               </div>
+                               {acc.annualInterestRate && (
+                                 <div className="flex flex-col">
+                                   <span className="text-[8px] font-black text-rose-400 uppercase tracking-widest">Interés</span>
+                                   <span className="text-[10px] font-black text-rose-600">
+                                     {formatAmount((currentDebt * (acc.annualInterestRate / 100)) / 12, acc.currency)}
+                                   </span>
+                                 </div>
+                               )}
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {isCredit && currentDebt > 0 && (
+                              <button
+                                onClick={() => {
+                                  setPayingCardId(acc.id);
+                                  setPaymentData({ ...paymentData, amount: currentDebt });
+                                }}
+                                className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100"
+                              >
+                                Pagar
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleEdit(acc)}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              onClick={() => onDelete(acc.id)}
+                              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Modal/Formulario de Pago Rápido */}
+                      {/* Modal de Pago Rápido - Integrado y elegante */}
                       {payingCardId === acc.id && (
-                        <div className="mt-6 p-6 bg-slate-900 rounded-[2rem] text-white animate-in zoom-in duration-300 shadow-2xl">
-                          <div className="flex items-center justify-between mb-4">
-                            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-emerald-400">Pago Rápido de Tarjeta</h4>
-                            <button onClick={() => setPayingCardId(null)} className="text-slate-500 hover:text-white">
-                              <Plus size={20} className="rotate-45" />
+                        <div className="mt-4 p-4 bg-slate-900 rounded-2xl text-white animate-in zoom-in duration-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-400">Transferencia para Pago</h4>
+                            <button onClick={() => setPayingCardId(null)} className="text-white/40 hover:text-white">
+                              <Plus size={16} className="rotate-45" />
                             </button>
                           </div>
-                          <form onSubmit={handleQuickPayment} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                          <form onSubmit={handleQuickPayment} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                             <div className="flex flex-col gap-1">
-                              <label className="text-[9px] font-black uppercase text-slate-500 ml-1">Pagar desde:</label>
+                              <label className="text-[8px] font-black uppercase text-white/40 ml-1">Origen</label>
                               <select 
                                 required
-                                className="bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                                className="bg-white/10 border-none rounded-lg px-3 py-2 text-xs font-bold outline-none focus:ring-1 focus:ring-emerald-500 text-white"
                                 value={paymentData.fromAccountId}
                                 onChange={e => setPaymentData({ ...paymentData, fromAccountId: e.target.value })}
                               >
-                                <option value="">Selecciona cuenta...</option>
+                                <option value="" className="text-slate-900">Seleccionar...</option>
                                 {accounts.filter(a => a.type !== 'Tarjeta de Crédito' && a.currency === acc.currency).map(a => (
-                                  <option key={a.id} value={a.id}>{a.name} ({formatAmount(a.balance, a.currency)})</option>
+                                  <option key={a.id} value={a.id} className="text-slate-900">{a.name} ({formatAmount(a.balance, a.currency)})</option>
                                 ))}
                               </select>
                             </div>
                             <div className="flex flex-col gap-1">
-                              <label className="text-[9px] font-black uppercase text-slate-500 ml-1">Monto a pagar ({acc.currency}):</label>
+                              <label className="text-[8px] font-black uppercase text-white/40 ml-1">Monto ({acc.currency})</label>
                               <input 
-                                type="number"
-                                step="0.01"
-                                required
-                                className="bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500"
+                                type="number" step="0.01" required
+                                className="bg-white/10 border-none rounded-lg px-3 py-2 text-xs font-bold outline-none focus:ring-1 focus:ring-emerald-500 text-white"
                                 value={paymentData.amount}
                                 onChange={e => setPaymentData({ ...paymentData, amount: parseFloat(e.target.value) })}
                               />
                             </div>
-                            <button type="submit" className="bg-emerald-500 hover:bg-emerald-600 text-white font-black py-3 px-6 rounded-xl text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-emerald-900/20">
-                              Confirmar Pago
+                            <button type="submit" className="bg-emerald-500 hover:bg-emerald-400 text-white font-black py-2 rounded-lg text-[9px] uppercase tracking-widest transition-all">
+                              Confirmar
                             </button>
                           </form>
                         </div>

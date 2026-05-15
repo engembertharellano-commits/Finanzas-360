@@ -11,7 +11,8 @@ import {
   BarChart2,
   CalendarDays,
   AlertCircle,
-  TrendingUp
+  TrendingUp,
+  Info
 } from 'lucide-react';
 
 interface Props {

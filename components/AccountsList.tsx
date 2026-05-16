@@ -29,7 +29,8 @@ const ACCOUNT_TYPE_ORDER: AccountType[] = [
   'Efectivo',
   'Billetera Virtual',
   'Broker',
-  'Tarjeta de Crédito'
+  'Tarjeta de Crédito',
+  'Lista de Deseos'
 ];
 
 const getGroupAccent = (type: AccountType) => {
@@ -81,6 +82,14 @@ const getGroupAccent = (type: AccountType) => {
         iconBg: 'bg-rose-500/10',
         iconText: 'text-rose-600',
         dot: 'bg-rose-400'
+      };
+    case 'Lista de Deseos':
+      return {
+        bar: 'bg-fuchsia-500',
+        badge: 'bg-fuchsia-500 text-white',
+        iconBg: 'bg-fuchsia-500/10',
+        iconText: 'text-fuchsia-600',
+        dot: 'bg-fuchsia-400'
       };
     default:
       return {
@@ -287,6 +296,7 @@ export const AccountsList: React.FC<Props> = ({ accounts, onAdd, onUpdate, onDel
                 <option value="Tarjeta de Crédito">Tarjeta de Crédito</option>
                 <option value="Billetera Virtual">Billetera Virtual</option>
                 <option value="Efectivo">Efectivo</option>
+                <option value="Lista de Deseos">Lista de Deseos</option>
               </select>
             </div>
 

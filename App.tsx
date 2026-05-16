@@ -1124,8 +1124,6 @@ const App: React.FC = () => {
               <WishlistModule 
                 items={wishlist}
                 accounts={accounts}
-                wishlistAccountId={wishlistAccountId}
-                onUpdateAccountId={setWishlistAccountId}
                 onAdd={(item) => setWishlist(prev => [...prev, item])}
                 onUpdate={(item) => setWishlist(prev => prev.map(i => i.id === item.id ? item : i))}
                 onDelete={(id) => {

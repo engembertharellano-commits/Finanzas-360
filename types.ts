@@ -5,7 +5,8 @@ export type AccountType =
   | 'Efectivo'
   | 'Tarjeta de Crédito'
   | 'Billetera Virtual'
-  | 'Broker';
+  | 'Broker'
+  | 'Lista de Deseos';
 
 export type TransactionType = 'Ingreso' | 'Gasto' | 'Transferencia' | 'Ajuste';
 export type Category = string;

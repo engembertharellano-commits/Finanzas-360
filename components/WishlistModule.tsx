@@ -10,7 +10,8 @@ import {
   Search,
   ArrowUp,
   ArrowDown,
-  Wallet
+  Wallet,
+  Edit2
 } from 'lucide-react';
 
 interface WishlistProps {
@@ -27,8 +28,6 @@ interface WishlistProps {
 export const WishlistModule: React.FC<WishlistProps> = ({
   items,
   accounts,
-  wishlistAccountId,
-  onUpdateAccountId,
   onAdd,
   onUpdate,
   onDelete,
@@ -39,13 +38,16 @@ export const WishlistModule: React.FC<WishlistProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'bought' | 'cancelled'>('pending');
 
+  // Encontrar la cuenta dedicada a "Lista de Deseos"
+  const wishlistAccount = useMemo(() => {
+    return accounts.find(a => a.type === 'Lista de Deseos');
+  }, [accounts]);
+
   // Determinar saldo del fondo en USD
   const fundBalanceUSD = useMemo(() => {
-    if (!wishlistAccountId) return 0;
-    const acc = accounts.find(a => a.id === wishlistAccountId);
-    if (!acc) return 0;
-    return acc.currency === 'USD' ? acc.balance : acc.balance / exchangeRate;
-  }, [wishlistAccountId, accounts, exchangeRate]);
+    if (!wishlistAccount) return 0;
+    return wishlistAccount.currency === 'USD' ? wishlistAccount.balance : wishlistAccount.balance / exchangeRate;
+  }, [wishlistAccount, exchangeRate]);
 
   // Filtrar y ordenar items
   const filteredAndSortedItems = useMemo(() => {
@@ -121,7 +123,6 @@ export const WishlistModule: React.FC<WishlistProps> = ({
     if (editingItem) {
       onUpdate(newItem);
     } else {
-      // Intentar auto-ordenar por prioridad si se desea, pero lo más fácil es ponerlo al final.
       onAdd(newItem);
     }
     
@@ -159,27 +160,22 @@ export const WishlistModule: React.FC<WishlistProps> = ({
           <p className="text-slate-500 font-medium">Asigna un fondo y mira cómo se completan tus metas en orden.</p>
         </div>
         
-        {/* Selector de Cuenta Fondo */}
+        {/* Info de Cuenta Fondo */}
         <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4">
           <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
             <Wallet size={24} />
           </div>
           <div>
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">
-              Cuenta Fondo (Origen de ahorros)
+              Cuenta Fondo Asignada
             </label>
-            <select
-              value={wishlistAccountId || ''}
-              onChange={(e) => onUpdateAccountId(e.target.value || undefined)}
-              className="bg-transparent font-bold text-slate-900 outline-none w-full max-w-[200px] cursor-pointer"
-            >
-              <option value="">Seleccionar cuenta...</option>
-              {accounts.map(acc => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.name} ({acc.currency})
-                </option>
-              ))}
-            </select>
+            {wishlistAccount ? (
+              <span className="font-bold text-slate-900 text-lg">
+                {wishlistAccount.name} ({wishlistAccount.currency === 'USD' ? '$' : 'Bs '}{wishlistAccount.balance.toLocaleString()})
+              </span>
+            ) : (
+              <span className="font-bold text-rose-500 text-sm">No has creado cuenta "Lista de Deseos"</span>
+            )}
           </div>
         </div>
       </div>
@@ -250,10 +246,10 @@ export const WishlistModule: React.FC<WishlistProps> = ({
         </div>
       </div>
 
-      {/* Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* List Layout */}
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
         {filteredAndSortedItems.length === 0 ? (
-          <div className="col-span-full bg-white border-2 border-dashed border-slate-100 rounded-[3rem] p-20 flex flex-col items-center justify-center text-center">
+          <div className="p-20 flex flex-col items-center justify-center text-center">
             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
               <ShoppingBag className="text-slate-300 w-10 h-10" />
             </div>
@@ -261,134 +257,154 @@ export const WishlistModule: React.FC<WishlistProps> = ({
             <p className="text-slate-400 max-w-xs font-medium">Comienza a agregar cosas que quieres comprar en el futuro.</p>
           </div>
         ) : (
-          filteredAndSortedItems.map((item, index) => {
-            const isPending = item.status === 'pending';
-            const progressInfo = itemProgress[item.id] || { savedUSD: 0, percentage: 0 };
-            const progress = isPending ? progressInfo.percentage : (item.status === 'bought' ? 100 : 0);
-            
-            const priorityColors = {
-              high: 'bg-rose-100 text-rose-700',
-              medium: 'bg-amber-100 text-amber-700',
-              low: 'bg-slate-100 text-slate-700'
-            };
-
-            return (
-              <div 
-                key={item.id}
-                className="bg-white rounded-3xl border border-slate-100 hover:border-indigo-100 hover:shadow-xl transition-all overflow-hidden flex flex-col"
-              >
-                <div className="p-6 flex-1 relative">
-                  {/* Controles de orden */}
-                  {isPending && filterStatus === 'pending' && !searchTerm && (
-                    <div className="absolute top-6 right-6 flex flex-col bg-slate-50 rounded-xl overflow-hidden shadow-sm border border-slate-100">
-                      <button 
-                        onClick={() => moveItem(item, 'up')}
-                        disabled={index === 0}
-                        className="p-1 text-slate-400 hover:bg-white hover:text-indigo-600 disabled:opacity-30 transition-colors"
-                      >
-                        <ArrowUp size={16} />
-                      </button>
-                      <button 
-                        onClick={() => moveItem(item, 'down')}
-                        disabled={index === filteredAndSortedItems.length - 1}
-                        className="p-1 text-slate-400 hover:bg-white hover:text-indigo-600 disabled:opacity-30 transition-colors border-t border-slate-100"
-                      >
-                        <ArrowDown size={16} />
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between items-start mb-4 pr-10">
-                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${priorityColors[item.priority]}`}>
-                      {item.priority === 'high' ? 'Alta' : item.priority === 'medium' ? 'Media' : 'Baja'} Prioridad
-                    </span>
-                  </div>
-
-                  <h3 className="text-xl font-black text-slate-900 leading-tight mb-1">{item.description}</h3>
-                  <p className="text-sm font-bold text-slate-400 mb-6">{item.category}</p>
-
-                  <div className="flex justify-between items-end mb-2">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Precio estimado</p>
-                      <p className="text-2xl font-black text-slate-900">
-                        {item.currency === 'USD' ? '$' : ''}{item.amount.toLocaleString()} {item.currency === 'VES' ? 'VES' : ''}
-                      </p>
-                    </div>
-                    {item.estimatedDate && (
-                      <div className="text-right">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Para</p>
-                        <p className="text-sm font-bold text-slate-600">{new Date(item.estimatedDate).toLocaleDateString()}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Individual Progress */}
-                  {isPending && (
-                    <div className="mt-4 p-4 bg-slate-50 rounded-2xl">
-                      <div className="flex justify-between text-xs mb-2">
-                        <span className="font-bold text-slate-500">Cubierto: ${progressInfo.savedUSD.toLocaleString('en-US', {maximumFractionDigits: 2})}</span>
-                        <span className="font-black text-slate-900">{Math.min(progress, 100).toFixed(0)}%</span>
-                      </div>
-                      <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full transition-all duration-500 ${progress >= 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
-                          style={{ width: `${Math.min(progress, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Footer actions */}
-                <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-2">
-                  {item.url && (
-                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="px-4 py-3 text-slate-400 hover:text-indigo-600 bg-white border border-slate-200 rounded-xl transition-colors" title="Ver producto">
-                      <ExternalLink size={18} />
-                    </a>
-                  )}
-                  <button 
-                    onClick={() => {
-                      setEditingItem(item);
-                      setIsAdding(true);
-                    }}
-                    className="px-4 py-3 text-slate-400 hover:text-blue-600 bg-white border border-slate-200 rounded-xl transition-colors"
-                    title="Editar"
-                  >
-                    Editar
-                  </button>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase tracking-widest text-slate-400 font-black">
+                  <th className="px-6 py-4">Orden</th>
+                  <th className="px-6 py-4">Descripción</th>
+                  <th className="px-6 py-4">Prioridad / Cat</th>
+                  <th className="px-6 py-4 text-right">Precio</th>
+                  <th className="px-6 py-4">Progreso / Cascada</th>
+                  <th className="px-6 py-4 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filteredAndSortedItems.map((item, index) => {
+                  const isPending = item.status === 'pending';
+                  const progressInfo = itemProgress[item.id] || { savedUSD: 0, percentage: 0 };
+                  const progress = isPending ? progressInfo.percentage : (item.status === 'bought' ? 100 : 0);
                   
-                  {isPending ? (
-                    <>
-                      <button 
-                        onClick={() => handleStatusChange(item, 'bought')}
-                        className="flex-1 py-3 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors"
-                      >
-                        <CheckCircle2 size={16} /> Comprado
-                      </button>
-                      <button 
-                        onClick={() => handleStatusChange(item, 'cancelled')}
-                        className="px-4 py-3 bg-white border border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-200 rounded-xl flex items-center justify-center transition-colors"
-                        title="Cancelar / Descartar"
-                      >
-                        <XCircle size={18} />
-                      </button>
-                    </>
-                  ) : (
-                    <div className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 ${item.status === 'bought' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500'}`}>
-                      {item.status === 'bought' ? <><CheckCircle2 size={16} /> Comprado</> : <><XCircle size={16} /> Cancelado</>}
-                    </div>
-                  )}
-                  <button 
-                    onClick={() => onDelete(item.id)}
-                    className="px-4 py-3 bg-white border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200 rounded-xl transition-colors"
-                    title="Eliminar registro"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              </div>
-            );
-          })
+                  const priorityColors = {
+                    high: 'bg-rose-100 text-rose-700',
+                    medium: 'bg-amber-100 text-amber-700',
+                    low: 'bg-slate-100 text-slate-700'
+                  };
+
+                  return (
+                    <tr key={item.id} className={`hover:bg-slate-50/50 transition-colors ${item.status === 'cancelled' ? 'opacity-50' : ''}`}>
+                      <td className="px-6 py-4">
+                        {isPending && filterStatus === 'pending' && !searchTerm ? (
+                          <div className="flex flex-col gap-1 items-center justify-center w-8">
+                            <button 
+                              onClick={() => moveItem(item, 'up')}
+                              disabled={index === 0}
+                              className="text-slate-400 hover:text-indigo-600 disabled:opacity-30"
+                            >
+                              <ArrowUp size={14} />
+                            </button>
+                            <span className="text-xs font-bold text-slate-400">{index + 1}</span>
+                            <button 
+                              onClick={() => moveItem(item, 'down')}
+                              disabled={index === filteredAndSortedItems.length - 1}
+                              className="text-slate-400 hover:text-indigo-600 disabled:opacity-30"
+                            >
+                              <ArrowDown size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-sm font-bold text-slate-400 w-8 inline-block text-center">{index + 1}</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-black text-slate-900">{item.description}</span>
+                          {item.estimatedDate && (
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Para: {new Date(item.estimatedDate).toLocaleDateString()}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col items-start gap-2">
+                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest ${priorityColors[item.priority]}`}>
+                            {item.priority === 'high' ? 'Alta' : item.priority === 'medium' ? 'Media' : 'Baja'}
+                          </span>
+                          <span className="text-xs font-bold text-slate-500">{item.category}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className="text-base font-black text-slate-900">
+                          {item.currency === 'USD' ? '$' : ''}{item.amount.toLocaleString()} {item.currency === 'VES' ? 'VES' : ''}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 min-w-[200px]">
+                        {isPending ? (
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex justify-between items-end">
+                              <span className="text-[10px] font-bold text-slate-500">
+                                Cubierto: <strong className="text-emerald-600">${progressInfo.savedUSD.toLocaleString('en-US', {maximumFractionDigits: 2})}</strong>
+                              </span>
+                              <span className="text-xs font-black text-slate-900">{Math.min(progress, 100).toFixed(0)}%</span>
+                            </div>
+                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full transition-all duration-500 ${progress >= 100 ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                                style={{ width: `${Math.min(progress, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            {item.status === 'bought' ? (
+                              <span className="px-2 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-md">Comprado</span>
+                            ) : (
+                              <span className="px-2 py-1 bg-rose-50 text-rose-500 text-[10px] font-black uppercase tracking-widest rounded-md">Cancelado</span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {item.url && (
+                            <a href={item.url} target="_blank" rel="noopener noreferrer" className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors" title="Ver producto">
+                              <ExternalLink size={16} />
+                            </a>
+                          )}
+                          <button 
+                            onClick={() => {
+                              setEditingItem(item);
+                              setIsAdding(true);
+                            }}
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                            title="Editar"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          
+                          {isPending && (
+                            <>
+                              <button 
+                                onClick={() => handleStatusChange(item, 'bought')}
+                                className="p-2 text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
+                                title="Marcar como Comprado"
+                              >
+                                <CheckCircle2 size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleStatusChange(item, 'cancelled')}
+                                className="p-2 text-rose-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                                title="Cancelar / Descartar"
+                              >
+                                <XCircle size={16} />
+                              </button>
+                            </>
+                          )}
+                          
+                          <button 
+                            onClick={() => onDelete(item.id)}
+                            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

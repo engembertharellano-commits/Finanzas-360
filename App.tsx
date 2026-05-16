@@ -534,6 +534,8 @@ const App: React.FC = () => {
     financialPlans,
     loans,
     debts,
+    wishlist,
+    wishlistAccountId,
     currentUser,
     isDataReady,
     saveToCloud

@@ -47,6 +47,50 @@ export const Portfolio: React.FC<Props> = ({
   const [moveUnits, setMoveUnits] = useState<number>(0);
   const [moveTargetAccountId, setMoveTargetAccountId] = useState<string>('');
 
+  const consolidatedInvestments = useMemo(() => {
+    const groups: Record<string, any> = {};
+
+    investments.forEach(inv => {
+      const assetKey = (inv.ticker || inv.name).trim().toUpperCase();
+      if (!groups[assetKey]) {
+        groups[assetKey] = {
+          assetKey,
+          name: inv.name,
+          ticker: inv.ticker,
+          category: inv.category,
+          totalQuantity: 0,
+          totalInvestedUSD: 0,
+          totalValueUSD: 0,
+          currentMarketPriceUSD: (inv.currency === 'USD' ? inv.currentMarketPrice : inv.currentMarketPrice / exchangeRate) || 0,
+          currency: 'USD' // Consolidated view always in USD
+        };
+      }
+
+      const group = groups[assetKey];
+      const invQuantity = Number(inv.quantity || 0);
+      const invInvestedUSD = inv.currency === 'USD' ? Number(inv.initialInvestment || 0) : Number(inv.initialInvestment || 0) / exchangeRate;
+      const invValueUSD = inv.currency === 'USD' ? Number(inv.value || 0) : Number(inv.value || 0) / exchangeRate;
+      
+      group.totalQuantity += invQuantity;
+      group.totalInvestedUSD += invInvestedUSD;
+      group.totalValueUSD += invValueUSD;
+      
+      if (inv.currentMarketPrice) {
+        group.currentMarketPriceUSD = inv.currency === 'USD' ? inv.currentMarketPrice : inv.currentMarketPrice / exchangeRate;
+      }
+    });
+
+    return Object.values(groups).map(g => {
+      const avgBuyPriceUSD = g.totalQuantity > 0 ? g.totalInvestedUSD / g.totalQuantity : 0;
+      const performance = avgBuyPriceUSD > 0 ? ((g.currentMarketPriceUSD - avgBuyPriceUSD) / avgBuyPriceUSD) * 100 : 0;
+      return {
+        ...g,
+        avgBuyPriceUSD,
+        performance
+      };
+    });
+  }, [investments, exchangeRate]);
+
   const [newInv, setNewInv] = useState({
     name: '',
     ticker: '',
@@ -903,6 +947,69 @@ export const Portfolio: React.FC<Props> = ({
                         </td>
                         <td className={`px-6 py-4 text-right font-black ${Number(inv.performance || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                           {Number(inv.performance || 0) >= 0 ? '+' : ''}{Number(inv.performance || 0).toFixed(2)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden mt-8">
+            <div className="px-6 md:px-8 py-6 border-b border-slate-100 flex items-center justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-black text-slate-900">Consolidado por Activo (USD)</h3>
+                <p className="text-sm font-medium text-slate-500">Vista agrupada de activos sin importar la wallet o broker</p>
+              </div>
+            </div>
+
+            {consolidatedInvestments.length === 0 ? (
+              <div className="px-8 py-12 text-center text-slate-400 font-bold">
+                No hay activos para consolidar.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="bg-slate-50">
+                      <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Activo</th>
+                      <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Categoría</th>
+                      <th className="text-right px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Total Unidades</th>
+                      <th className="text-right px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Costo Prom. (USD)</th>
+                      <th className="text-right px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Inversión (USD)</th>
+                      <th className="text-right px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Valor Actual (USD)</th>
+                      <th className="text-right px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Rend. %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {consolidatedInvestments.map(g => (
+                      <tr key={`cons-${g.assetKey}`} className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="min-w-[150px]">
+                            <p className="font-black text-slate-900 leading-none">{g.name}</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">
+                              {g.ticker || 'N/A'}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-xs font-black text-slate-600">{g.category}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right font-black text-slate-800">
+                          {g.totalQuantity.toLocaleString(undefined, { maximumFractionDigits: 8 })}
+                        </td>
+                        <td className="px-6 py-4 text-right font-black text-slate-700">
+                          ${g.avgBuyPriceUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                        </td>
+                        <td className="px-6 py-4 text-right font-black text-slate-700">
+                          ${g.totalInvestedUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-6 py-4 text-right font-black text-slate-900">
+                          ${g.totalValueUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className={`px-6 py-4 text-right font-black ${g.performance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {g.performance >= 0 ? '+' : ''}{g.performance.toFixed(2)}%
                         </td>
                       </tr>
                     ))}

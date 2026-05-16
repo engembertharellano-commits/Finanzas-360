@@ -18,7 +18,8 @@ import {
   Landmark,
   X,
   BarChart3,
-  HandCoins
+  HandCoins,
+  Banknote
 } from 'lucide-react';
 
 interface Props {
@@ -167,18 +168,20 @@ return {
 
   const totalInvestedUSD = normalizedInvestments.reduce((acc, inv) => acc + inv.valueUSD, 0);
 
-  const totalLentUSD = loans.reduce((acc, l) => {
-    if (l.status === 'paid') return acc;
-    const totalPaid = l.payments.reduce((sum, p) => sum + p.amount, 0);
-    const remaining = l.amount - totalPaid;
-    return acc + (l.currency === 'USD' ? remaining : remaining / exchangeRate);
+  const totalLentUSD = (loans || []).reduce((acc, l) => {
+    if (!l || l.status === 'paid') return acc;
+    const payments = Array.isArray(l.payments) ? l.payments : [];
+    const totalPaid = payments.reduce((sum, p) => sum + (p?.amount || 0), 0);
+    const remaining = (l.amount || 0) - totalPaid;
+    return acc + (l.currency === 'USD' ? remaining : remaining / (exchangeRate || 1));
   }, 0);
 
-  const totalDebtUSD = debts.reduce((acc, d) => {
-    if (d.status === 'paid') return acc;
-    const totalPaid = d.payments.reduce((sum, p) => sum + p.amount, 0);
-    const remaining = d.amount - totalPaid;
-    return acc + (d.currency === 'USD' ? remaining : remaining / exchangeRate);
+  const totalDebtUSD = (debts || []).reduce((acc, d) => {
+    if (!d || d.status === 'paid') return acc;
+    const payments = Array.isArray(d.payments) ? d.payments : [];
+    const totalPaid = payments.reduce((sum, p) => sum + (p?.amount || 0), 0);
+    const remaining = (d.amount || 0) - totalPaid;
+    return acc + (d.currency === 'USD' ? remaining : remaining / (exchangeRate || 1));
   }, 0);
 
   const currentLiquidOwnUSD = Math.max(0, totalLiquidUSD - totalThirdPartyUSD);

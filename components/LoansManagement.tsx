@@ -118,8 +118,8 @@ export const LoansManagement: React.FC<LoansManagementProps> = ({
       date: new Date().toISOString().split('T')[0]
     };
 
-    const updatedPayments = [...loan.payments, newPayment];
-    const totalPaid = updatedPayments.reduce((sum, p) => sum + p.amount, 0);
+    const updatedPayments = [...(loan.payments || []), newPayment];
+    const totalPaid = updatedPayments.reduce((sum, p) => sum + (p?.amount || 0), 0);
     
     const updatedLoan: Loan = {
       ...loan,
@@ -206,8 +206,9 @@ export const LoansManagement: React.FC<LoansManagementProps> = ({
           </div>
         ) : (
           filteredLoans.map(loan => {
-            const totalPaid = loan.payments.reduce((sum, p) => sum + p.amount, 0);
-            const remaining = loan.amount - totalPaid;
+            const payments = Array.isArray(loan.payments) ? loan.payments : [];
+            const totalPaid = payments.reduce((sum, p) => sum + (p?.amount || 0), 0);
+            const remaining = (loan.amount || 0) - totalPaid;
             const progress = (totalPaid / loan.amount) * 100;
             const isOverdue = loan.dueDate && new Date(loan.dueDate) < new Date() && loan.status !== 'paid';
 

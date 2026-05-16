@@ -82,6 +82,7 @@ type PersistedFinanceData = {
   loans?: Loan[];
   debts?: Debt[];
   wishlist?: WishlistItem[];
+  wishlistAccountId?: string;
 };
 
 type CloudStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -96,7 +97,8 @@ const EMPTY_DATA: PersistedFinanceData = {
   financialPlans: [],
   loans: [],
   debts: [],
-  wishlist: []
+  wishlist: [],
+  wishlistAccountId: undefined
 };
 
 const USER_REGISTRY_KEYS = ['f360_users', 'f360_users_list', 'finanza360_users', 'users'];
@@ -126,7 +128,8 @@ const data = input as Partial<PersistedFinanceData> | null;
     financialPlans: Array.isArray(data?.financialPlans) ? data.financialPlans : [],
     loans: Array.isArray(data?.loans) ? data.loans : [],
     debts: Array.isArray(data?.debts) ? data.debts : [],
-    wishlist: Array.isArray(data?.wishlist) ? data.wishlist : []
+    wishlist: Array.isArray(data?.wishlist) ? data.wishlist : [],
+    wishlistAccountId: data?.wishlistAccountId
   };
 };
 
@@ -273,6 +276,7 @@ const App: React.FC = () => {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
+  const [wishlistAccountId, setWishlistAccountId] = useState<string | undefined>();
 
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
@@ -307,6 +311,7 @@ const App: React.FC = () => {
     setLoans(clean.loans || []);
     setDebts(clean.debts || []);
     setWishlist(clean.wishlist || []);
+    setWishlistAccountId(clean.wishlistAccountId);
   }, []);
 
   const fetchRate = useCallback(async () => {
@@ -380,6 +385,7 @@ const App: React.FC = () => {
     setLoans([]);
     setDebts([]);
     setWishlist([]);
+    setWishlistAccountId(undefined);
 
     setIsDataReady(false);
     setCloudStatus('idle');
@@ -488,7 +494,8 @@ const App: React.FC = () => {
       financialPlans,
       loans,
       debts,
-      wishlist
+      wishlist,
+      wishlistAccountId
     };
 
     const serialized = JSON.stringify(data);
@@ -1116,6 +1123,9 @@ const App: React.FC = () => {
             {activeView === 'wishlist' && (
               <WishlistModule 
                 items={wishlist}
+                accounts={accounts}
+                wishlistAccountId={wishlistAccountId}
+                onUpdateAccountId={setWishlistAccountId}
                 onAdd={(item) => setWishlist(prev => [...prev, item])}
                 onUpdate={(item) => setWishlist(prev => prev.map(i => i.id === item.id ? item : i))}
                 onDelete={(id) => {

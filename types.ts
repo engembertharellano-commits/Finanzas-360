@@ -215,7 +215,7 @@ export interface WishlistItem {
   priority: 'low' | 'medium' | 'high';
   estimatedDate?: string;
   category: string;
-  savedAmount: number;
+  order: number;
   url?: string;
   status: 'pending' | 'bought' | 'cancelled';
 }

@@ -3,7 +3,7 @@ import { Investment, Currency, BankAccount, Transaction } from '../types';
 import {
   Plus, TrendingUp, Trash2, Search,
   Loader2, ChevronRight, X, Info, Building2, Coins, HandCoins,
-  ArrowUpRight, RefreshCw, CheckCircle2, Wallet, Landmark, Repeat
+  ArrowUpRight, RefreshCw, CheckCircle2, Wallet, Landmark, Repeat, Edit2
 } from 'lucide-react';
 import { FinanceAIService } from '../services/geminiService';
 

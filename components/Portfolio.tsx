@@ -977,8 +977,9 @@ export const Portfolio: React.FC<Props> = ({
                       <th className="text-left px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Categoría</th>
                       <th className="text-right px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Total Unidades</th>
                       <th className="text-right px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Costo Prom. (USD)</th>
+                      <th className="text-right px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Precio Mercado (USD)</th>
                       <th className="text-right px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Inversión (USD)</th>
-                      <th className="text-right px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Valor Actual (USD)</th>
+                      <th className="text-right px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Valor Total (USD)</th>
                       <th className="text-right px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Rend. %</th>
                     </tr>
                   </thead>
@@ -1001,6 +1002,9 @@ export const Portfolio: React.FC<Props> = ({
                         </td>
                         <td className="px-6 py-4 text-right font-black text-slate-700">
                           ${g.avgBuyPriceUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                        </td>
+                        <td className="px-6 py-4 text-right font-black text-slate-700">
+                          ${g.currentMarketPriceUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                         </td>
                         <td className="px-6 py-4 text-right font-black text-slate-700">
                           ${g.totalInvestedUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

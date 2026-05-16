@@ -336,64 +336,64 @@ return {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <div className="bg-slate-50 rounded-2xl px-4 py-4 border border-slate-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                        <Landmark size={18} />
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+                  <div className="bg-slate-50 rounded-2xl px-3 py-3 border border-slate-100">
+                    <div className="flex flex-col xl:flex-row items-start xl:items-center gap-2 xl:gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                        <Landmark size={16} />
                       </div>
-                      <div>
-                        <p className="text-[11px] font-black text-slate-500 uppercase tracking-tight">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-tight truncate">
                           Liquidez
                         </p>
-                        <p className="text-xl font-black text-emerald-700 mt-0.5">
+                        <p className="text-lg font-black text-emerald-700 mt-0.5 truncate">
                           {formatMoney(currentLiquidOwnUSD, 'USD')}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 rounded-2xl px-4 py-4 border border-slate-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center">
-                        <TrendingUp size={18} />
+                  <div className="bg-slate-50 rounded-2xl px-3 py-3 border border-slate-100">
+                    <div className="flex flex-col xl:flex-row items-start xl:items-center gap-2 xl:gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center shrink-0">
+                        <TrendingUp size={16} />
                       </div>
-                      <div>
-                        <p className="text-[11px] font-black text-slate-500 uppercase tracking-tight">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-tight truncate">
                           Invertido
                         </p>
-                        <p className="text-xl font-black text-violet-700 mt-0.5">
+                        <p className="text-lg font-black text-violet-700 mt-0.5 truncate">
                           {formatMoney(totalInvestedUSD, 'USD')}
                         </p>
                       </div>
                     </div>
                   </div>
-                  <div className="bg-slate-50 rounded-2xl px-4 py-4 border border-slate-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
-                        <HandCoins size={18} />
+                  <div className="bg-slate-50 rounded-2xl px-3 py-3 border border-slate-100">
+                    <div className="flex flex-col xl:flex-row items-start xl:items-center gap-2 xl:gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                        <HandCoins size={16} />
                       </div>
-                      <div>
-                        <p className="text-[11px] font-black text-slate-500 uppercase tracking-tight">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-tight truncate">
                           Préstamos
                         </p>
-                        <p className="text-xl font-black text-amber-700 mt-0.5">
+                        <p className="text-lg font-black text-amber-700 mt-0.5 truncate">
                           {formatMoney(totalLentUSD, 'USD')}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 rounded-2xl px-4 py-4 border border-slate-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center">
-                        <Banknote size={18} />
+                  <div className="bg-slate-50 rounded-2xl px-3 py-3 border border-slate-100">
+                    <div className="flex flex-col xl:flex-row items-start xl:items-center gap-2 xl:gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                        <Banknote size={16} />
                       </div>
-                      <div>
-                        <p className="text-[11px] font-black text-slate-500 uppercase tracking-tight">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-tight truncate">
                           Deudas
                         </p>
-                        <p className="text-xl font-black text-rose-700 mt-0.5">
+                        <p className="text-lg font-black text-rose-700 mt-0.5 truncate">
                           {formatMoney(totalDebtUSD, 'USD')}
                         </p>
                       </div>

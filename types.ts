@@ -162,3 +162,45 @@ export type FinancialPlan = {
   downPayment?: number;
   monthlyRent?: number;
 };
+
+export interface LoanPayment {
+  id: string;
+  amount: number;
+  date: string;
+  transactionId?: string;
+}
+
+export interface Loan {
+  id: string;
+  borrower: string;
+  amount: number;
+  currency: Currency;
+  interestRate: number;
+  startDate: string;
+  dueDate?: string;
+  status: 'pending' | 'paid' | 'overdue';
+  description: string;
+  accountId: string;
+  payments: LoanPayment[];
+}
+
+export interface DebtPayment {
+  id: string;
+  amount: number;
+  date: string;
+  transactionId?: string;
+}
+
+export interface Debt {
+  id: string;
+  creditor: string;
+  amount: number;
+  currency: Currency;
+  interestRate: number;
+  startDate: string;
+  dueDate?: string;
+  status: 'pending' | 'paid' | 'overdue';
+  description: string;
+  accountId: string;
+  payments: DebtPayment[];
+}

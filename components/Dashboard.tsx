@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Transaction, BankAccount, Investment } from '../types';
+import { Transaction, BankAccount, Investment, Loan, Debt } from '../types';
 import {
   PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip
 } from 'recharts';
@@ -17,7 +17,8 @@ import {
   Eye,
   Landmark,
   X,
-  BarChart3
+  BarChart3,
+  HandCoins
 } from 'lucide-react';
 
 interface Props {
@@ -30,6 +31,8 @@ interface Props {
   rateSourceUrl?: string;
   onSyncRate: () => void;
   isSyncingRate: boolean;
+  loans?: Loan[];
+  debts?: Debt[];
 }
 
 type NormalizedInvestment = {
@@ -48,7 +51,9 @@ export const Dashboard: React.FC<Props> = ({
   selectedMonth,
   exchangeRate,
   onSyncRate,
-  isSyncingRate
+  isSyncingRate,
+  loans = [],
+  debts = []
 }) => {
   const [displayCurrency, setDisplayCurrency] = useState<'USD' | 'VES'>('USD');
   const [showBalanceDetail, setShowBalanceDetail] = useState(false);
@@ -162,8 +167,22 @@ return {
 
   const totalInvestedUSD = normalizedInvestments.reduce((acc, inv) => acc + inv.valueUSD, 0);
 
+  const totalLentUSD = loans.reduce((acc, l) => {
+    if (l.status === 'paid') return acc;
+    const totalPaid = l.payments.reduce((sum, p) => sum + p.amount, 0);
+    const remaining = l.amount - totalPaid;
+    return acc + (l.currency === 'USD' ? remaining : remaining / exchangeRate);
+  }, 0);
+
+  const totalDebtUSD = debts.reduce((acc, d) => {
+    if (d.status === 'paid') return acc;
+    const totalPaid = d.payments.reduce((sum, p) => sum + p.amount, 0);
+    const remaining = d.amount - totalPaid;
+    return acc + (d.currency === 'USD' ? remaining : remaining / exchangeRate);
+  }, 0);
+
   const currentLiquidOwnUSD = Math.max(0, totalLiquidUSD - totalThirdPartyUSD);
-  const currentTotalUSD = currentLiquidOwnUSD + totalInvestedUSD;
+  const currentTotalUSD = currentLiquidOwnUSD + totalInvestedUSD + totalLentUSD - totalDebtUSD;
   const currentTotalVES = currentTotalUSD * exchangeRate;
   const realPersonalNetWorth = currentTotalUSD;
 
@@ -314,7 +333,7 @@ return {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div className="bg-slate-50 rounded-2xl px-4 py-4 border border-slate-100">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
@@ -342,6 +361,37 @@ return {
                         </p>
                         <p className="text-xl font-black text-violet-700 mt-0.5">
                           {formatMoney(totalInvestedUSD, 'USD')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 rounded-2xl px-4 py-4 border border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+                        <HandCoins size={18} />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-black text-slate-500 uppercase tracking-tight">
+                          Préstamos
+                        </p>
+                        <p className="text-xl font-black text-amber-700 mt-0.5">
+                          {formatMoney(totalLentUSD, 'USD')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 rounded-2xl px-4 py-4 border border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center">
+                        <Banknote size={18} />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-black text-slate-500 uppercase tracking-tight">
+                          Deudas
+                        </p>
+                        <p className="text-xl font-black text-rose-700 mt-0.5">
+                          {formatMoney(totalDebtUSD, 'USD')}
                         </p>
                       </div>
                     </div>

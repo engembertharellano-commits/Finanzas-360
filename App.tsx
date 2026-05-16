@@ -15,7 +15,9 @@ import {
   Users,
   UserX,
   Target,
-  BarChart3 // NUEVO ICONO
+  BarChart3,
+  HandCoins,
+  Banknote
 } from 'lucide-react';
 
 import {
@@ -24,6 +26,8 @@ import {
   Investment,
   Budget,
   User,
+  Loan,
+  Debt,
   DEFAULT_EXPENSE_CATEGORIES,
   DEFAULT_INCOME_CATEGORIES
 } from './types';
@@ -43,7 +47,9 @@ import { Auth } from './components/Auth';
 import { FinanceAIService } from './services/geminiService';
 import { FinancialPlanning } from './components/planning/FinancialPlanning';
 import IngresosModule from './components/IngresosModule';
-import { FinancialReport } from './components/FinancialReport'; // NUEVO COMPONENTE
+import { FinancialReport } from './components/FinancialReport';
+import { LoansManagement } from './components/LoansManagement';
+import { DebtsManagement } from './components/DebtsManagement';
 
 type View =
   | 'dashboard'
@@ -57,7 +63,9 @@ type View =
   | 'work'
   | 'custody'
   | 'planning'
-  | 'report'; // NUEVA VISTA
+  | 'report'
+  | 'loans'
+  | 'debts'; // NUEVA VISTA
 
 type PersistedFinanceData = {
   accounts: BankAccount[];
@@ -67,6 +75,8 @@ type PersistedFinanceData = {
   expenseCategories: string[];
   incomeCategories: string[];
   financialPlans?: any[];
+  loans?: Loan[];
+  debts?: Debt[];
 };
 
 type CloudStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -78,7 +88,9 @@ const EMPTY_DATA: PersistedFinanceData = {
   budgets: [],
   expenseCategories: DEFAULT_EXPENSE_CATEGORIES,
   incomeCategories: DEFAULT_INCOME_CATEGORIES,
-  financialPlans: []
+  financialPlans: [],
+  loans: [],
+  debts: []
 };
 
 const USER_REGISTRY_KEYS = ['f360_users', 'f360_users_list', 'finanza360_users', 'users'];
@@ -105,7 +117,9 @@ const data = input as Partial<PersistedFinanceData> | null;
     incomeCategories: Array.isArray(data?.incomeCategories)
       ? data.incomeCategories
       : DEFAULT_INCOME_CATEGORIES,
-    financialPlans: Array.isArray(data?.financialPlans) ? data.financialPlans : []
+    financialPlans: Array.isArray(data?.financialPlans) ? data.financialPlans : [],
+    loans: Array.isArray(data?.loans) ? data.loans : [],
+    debts: Array.isArray(data?.debts) ? data.debts : []
   };
 };
 
@@ -249,6 +263,8 @@ const App: React.FC = () => {
   const [incomeCategories, setIncomeCategories] = useState<string[]>(DEFAULT_INCOME_CATEGORIES);
   
   const [financialPlans, setFinancialPlans] = useState<any[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [debts, setDebts] = useState<Debt[]>([]);
 
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
@@ -280,6 +296,8 @@ const App: React.FC = () => {
     setExpenseCategories(clean.expenseCategories);
     setIncomeCategories(clean.incomeCategories);
     setFinancialPlans(clean.financialPlans || []);
+    setLoans(clean.loans || []);
+    setDebts(clean.debts || []);
   }, []);
 
   const fetchRate = useCallback(async () => {
@@ -350,6 +368,8 @@ const App: React.FC = () => {
     setExpenseCategories(DEFAULT_EXPENSE_CATEGORIES);
     setIncomeCategories(DEFAULT_INCOME_CATEGORIES);
     setFinancialPlans([]);
+    setLoans([]);
+    setDebts([]);
 
     setIsDataReady(false);
     setCloudStatus('idle');
@@ -455,7 +475,9 @@ const App: React.FC = () => {
       budgets,
       expenseCategories,
       incomeCategories,
-      financialPlans
+      financialPlans,
+      loans,
+      debts
     };
 
     const serialized = JSON.stringify(data);
@@ -492,6 +514,8 @@ const App: React.FC = () => {
     expenseCategories,
     incomeCategories,
     financialPlans,
+    loans,
+    debts,
     currentUser,
     isDataReady,
     saveToCloud
@@ -649,6 +673,36 @@ const App: React.FC = () => {
 
   const handleDeletePlan = (id: string) => {
     setFinancialPlans(prev => prev.filter(p => p.id !== id));
+  };
+
+  const handleAddLoan = (loan: Loan) => {
+    setLoans((prev) => [...prev, loan]);
+  };
+
+  const handleUpdateLoan = (updated: Loan) => {
+    setLoans((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+  };
+
+  const handleDeleteLoan = (id: string) => {
+    const loan = loans.find((l) => l.id === id);
+    requestDelete('¿Eliminar Préstamo?', `¿Quitar el préstamo a "${loan?.borrower}"?`, () =>
+      setLoans((prev) => prev.filter((l) => l.id !== id))
+    );
+  };
+
+  const handleAddDebt = (debt: Debt) => {
+    setDebts((prev) => [...prev, debt]);
+  };
+
+  const handleUpdateDebt = (updated: Debt) => {
+    setDebts((prev) => prev.map((d) => (d.id === updated.id ? updated : d)));
+  };
+
+  const handleDeleteDebt = (id: string) => {
+    const debt = debts.find((d) => d.id === id);
+    requestDelete('¿Eliminar Deuda?', `¿Quitar la deuda con "${debt?.creditor}"?`, () =>
+      setDebts((prev) => prev.filter((d) => d.id !== id))
+    );
   };
 
   const changeMonth = (offset: number) => {
@@ -833,6 +887,24 @@ const App: React.FC = () => {
               label="Planificación"
             />
             <NavItem
+              active={activeView === 'loans'}
+              onClick={() => {
+                setActiveView('loans');
+                setIsMobileMenuOpen(false);
+              }}
+              icon={<HandCoins size={20} />}
+              label="Préstamos"
+            />
+            <NavItem
+              active={activeView === 'debts'}
+              onClick={() => {
+                setActiveView('debts');
+                setIsMobileMenuOpen(false);
+              }}
+              icon={<Banknote size={20} />}
+              label="Deudas"
+            />
+            <NavItem
               active={activeView === 'budget'}
               onClick={() => {
                 setActiveView('budget');
@@ -933,6 +1005,8 @@ const App: React.FC = () => {
                 rateSourceUrl={rateSourceUrl}
                 onSyncRate={fetchRate}
                 isSyncingRate={isSyncingRate}
+                loans={loans}
+                debts={debts}
               />
             )}
             
@@ -995,6 +1069,28 @@ const App: React.FC = () => {
                 budgets={budgets}
                 investments={investments}
                 selectedMonth={selectedMonth}
+              />
+            )}
+            {activeView === 'loans' && (
+              <LoansManagement
+                loans={loans}
+                accounts={accounts}
+                onAdd={handleAddLoan}
+                onUpdate={handleUpdateLoan}
+                onDelete={handleDeleteLoan}
+                onAddTransaction={handleAddTransaction}
+                exchangeRate={exchangeRate}
+              />
+            )}
+            {activeView === 'debts' && (
+              <DebtsManagement
+                debts={debts}
+                accounts={accounts}
+                onAdd={handleAddDebt}
+                onUpdate={handleUpdateDebt}
+                onDelete={handleDeleteDebt}
+                onAddTransaction={handleAddTransaction}
+                exchangeRate={exchangeRate}
               />
             )}
             {activeView === 'portfolio' && (

@@ -74,6 +74,7 @@ export const DebtsManagement: React.FC<DebtsManagementProps> = ({
     const description = formData.get('description') as string;
     const dueDate = formData.get('dueDate') as string;
     const interestRate = Number(formData.get('interestRate')) || 0;
+    const commission = Number(formData.get('commission')) || 0;
 
     const newDebt: Debt = {
       id: crypto.randomUUID(),
@@ -86,15 +87,16 @@ export const DebtsManagement: React.FC<DebtsManagementProps> = ({
       status: 'pending',
       description,
       accountId,
+      commission,
       payments: []
     };
 
     onAdd(newDebt);
 
-    // Create a transaction to reflect the money coming in
+    // Create a transaction to reflect the money coming in (amount - commission)
     onAddTransaction({
-      description: `Deuda con ${creditor}`,
-      amount: amount,
+      description: `Deuda con ${creditor}${commission > 0 ? ' (neto de comisión)' : ''}`,
+      amount: amount - commission,
       type: 'Ingreso',
       category: 'Deudas',
       date: new Date().toISOString().split('T')[0],
@@ -422,6 +424,19 @@ export const DebtsManagement: React.FC<DebtsManagementProps> = ({
                       className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Comisión / Descuento inicial</label>
+                    <input 
+                      name="commission" 
+                      type="number" 
+                      step="0.01" 
+                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Tasa Interés Anual % (Opcional)</label>
                     <input 

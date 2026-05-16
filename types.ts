@@ -181,6 +181,7 @@ export interface Loan {
   status: 'pending' | 'paid' | 'overdue';
   description: string;
   accountId: string;
+  commission?: number;
   payments: LoanPayment[];
 }
 
@@ -202,5 +203,6 @@ export interface Debt {
   status: 'pending' | 'paid' | 'overdue';
   description: string;
   accountId: string;
+  commission?: number;
   payments: DebtPayment[];
 }

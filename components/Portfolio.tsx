@@ -351,7 +351,7 @@ export const Portfolio: React.FC<Props> = ({
       description: `Inversión: ${safeName}`,
       amount: newInv.initialInvestment,
       commission: newInv.buyCommission,
-      type: 'Transferencia',
+      type: 'Gasto',
       category: 'Inversiones',
       date: newInv.date,
       currency: newInv.currency,
@@ -522,12 +522,11 @@ export const Portfolio: React.FC<Props> = ({
         description: `Venta/Liquidación: ${liquidatingInv.name}`,
         amount: proceeds,
         commission: sellCommission,
-        type: 'Transferencia',
+        type: 'Ingreso',
         category: 'Inversiones',
         date: new Date().toISOString().split('T')[0],
         currency: liquidatingInv.currency,
-        toAccountId: targetAccountId,
-        accountId: '',
+        accountId: targetAccountId,
         relatedInvestmentId: liquidatingInv.id
       });
     }

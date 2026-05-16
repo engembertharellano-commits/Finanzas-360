@@ -197,9 +197,9 @@ export const LoansManagement: React.FC<LoansManagementProps> = ({
       </div>
 
       {/* Loans Grid/List */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
         {filteredLoans.length === 0 ? (
-          <div className="col-span-full bg-white border-2 border-dashed border-slate-100 rounded-[3rem] p-20 flex flex-col items-center justify-center text-center">
+          <div className="p-20 flex flex-col items-center justify-center text-center">
             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
               <HandCoins className="text-slate-300 w-10 h-10" />
             </div>
@@ -207,149 +207,164 @@ export const LoansManagement: React.FC<LoansManagementProps> = ({
             <p className="text-slate-400 max-w-xs font-medium">Comienza registrando un préstamo para llevar el control de tus deudores.</p>
           </div>
         ) : (
-          filteredLoans.map(loan => {
-            const payments = Array.isArray(loan.payments) ? loan.payments : [];
-            const totalPaid = payments.reduce((sum, p) => sum + (p?.amount || 0), 0);
-            const remaining = (loan.amount || 0) - totalPaid;
-            const progress = (totalPaid / loan.amount) * 100;
-            const isOverdue = loan.dueDate && new Date(loan.dueDate) < new Date() && loan.status !== 'paid';
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase tracking-widest text-slate-400 font-black">
+                  <th className="px-6 py-4">Deudor</th>
+                  <th className="px-6 py-4 text-right">Monto</th>
+                  <th className="px-6 py-4">Progreso / Fechas</th>
+                  <th className="px-6 py-4 text-right">Por cobrar</th>
+                  <th className="px-6 py-4 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filteredLoans.map(loan => {
+                  const payments = Array.isArray(loan.payments) ? loan.payments : [];
+                  const totalPaid = payments.reduce((sum, p) => sum + (p?.amount || 0), 0);
+                  const remaining = (loan.amount || 0) - totalPaid;
+                  const progress = (totalPaid / loan.amount) * 100;
+                  const isOverdue = loan.dueDate && new Date(loan.dueDate) < new Date() && loan.status !== 'paid';
 
-            return (
-              <div 
-                key={loan.id}
-                onClick={() => setSelectedLoanId(loan.id === selectedLoanId ? null : loan.id)}
-                className={`
-                  group bg-white rounded-[2.5rem] border transition-all cursor-pointer overflow-hidden
-                  ${selectedLoanId === loan.id ? 'border-slate-900 ring-4 ring-slate-100' : 'border-slate-100 hover:border-slate-200 hover:shadow-xl'}
-                `}
-              >
-                <div className="p-8">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="flex items-center gap-4">
-                      <div className={`
-                        w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl
-                        ${loan.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : isOverdue ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-900'}
-                      `}>
-                        {loan.borrower.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <h3 className="font-black text-slate-900 text-lg leading-tight">{loan.borrower}</h3>
-                        <p className="text-slate-400 text-sm font-bold uppercase tracking-wider">{loan.description}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-black text-slate-900">
-                        {loan.currency === 'USD' ? '$' : ''}{loan.amount.toLocaleString()} {loan.currency === 'VES' ? 'VES' : ''}
-                      </p>
-                      <div className="flex items-center justify-end gap-2 mt-1">
-                        {loan.status === 'paid' ? (
-                          <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-500">
-                            <CheckCircle2 size={12} /> Pagado
-                          </span>
-                        ) : isOverdue ? (
-                          <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-rose-500">
-                            <Clock size={12} /> Vencido
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            <Clock size={12} /> Pendiente
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Progreso de cobro</span>
-                      <span className="font-black text-slate-900">{Math.round(progress)}%</span>
-                    </div>
-                    <div className="h-3 bg-slate-50 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full transition-all duration-1000 ease-out ${loan.status === 'paid' ? 'bg-emerald-500' : 'bg-slate-900'}`}
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between items-end pt-2">
-                      <div className="flex items-center gap-4">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Fecha</span>
-                          <span className="text-sm font-bold text-slate-600">{loan.startDate}</span>
-                        </div>
-                        {loan.dueDate && (
-                          <div className="flex flex-col border-l border-slate-100 pl-4">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Vencimiento</span>
-                            <span className={`text-sm font-bold ${isOverdue ? 'text-rose-500' : 'text-slate-600'}`}>{loan.dueDate}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Por cobrar</span>
-                        <span className="text-xl font-black text-slate-900">
-                          {loan.currency === 'USD' ? '$' : ''}{remaining.toLocaleString()} {loan.currency === 'VES' ? 'VES' : ''}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payments Section (Accordion) */}
-                {selectedLoanId === loan.id && (
-                  <div className="border-t border-slate-50 bg-slate-50/50 p-8 animate-in slide-in-from-top-2 duration-300">
-                    <div className="flex justify-between items-center mb-6">
-                      <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Historial de Pagos</h4>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const amountStr = prompt(`Ingresa el monto del pago para ${loan.borrower} (${loan.currency}):`, remaining.toString());
-                          if (amountStr) {
-                            const val = parseFloat(amountStr);
-                            if (!isNaN(val) && val > 0) handleAddPayment(loan.id, val);
-                          }
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-slate-900 transition-colors"
+                  return (
+                    <React.Fragment key={loan.id}>
+                      <tr 
+                        onClick={() => setSelectedLoanId(loan.id === selectedLoanId ? null : loan.id)}
+                        className={`hover:bg-slate-50/50 transition-colors cursor-pointer ${selectedLoanId === loan.id ? 'bg-slate-50/80' : ''}`}
                       >
-                        <Plus size={14} /> Registrar Pago
-                      </button>
-                    </div>
-
-                    <div className="space-y-3">
-                      {loan.payments.length === 0 ? (
-                        <p className="text-center py-6 text-slate-400 text-xs font-bold uppercase tracking-widest italic">Sin pagos registrados</p>
-                      ) : (
-                        loan.payments.map(payment => (
-                          <div key={payment.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-emerald-50 text-emerald-500 rounded-lg flex items-center justify-center">
-                                <ArrowDownLeft size={16} />
-                              </div>
-                              <span className="text-sm font-bold text-slate-600">{payment.date}</span>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`
+                              w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm
+                              ${loan.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : isOverdue ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-900'}
+                            `}>
+                              {loan.borrower.charAt(0).toUpperCase()}
                             </div>
-                            <span className="font-black text-slate-900">
-                              +{loan.currency === 'USD' ? '$' : ''}{payment.amount.toLocaleString()} {loan.currency === 'VES' ? 'VES' : ''}
-                            </span>
+                            <div className="flex flex-col">
+                              <span className="font-black text-slate-900 text-sm">{loan.borrower}</span>
+                              <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">{loan.description}</span>
+                            </div>
                           </div>
-                        ))
-                      )}
-                    </div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="text-base font-black text-slate-900">
+                            {loan.currency === 'USD' ? '$' : ''}{loan.amount.toLocaleString()} {loan.currency === 'VES' ? 'VES' : ''}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 min-w-[200px]">
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex justify-between items-end">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                {loan.status === 'paid' ? 'Completado' : isOverdue ? 'Vencido' : 'En progreso'}
+                              </span>
+                              <span className="text-xs font-black text-slate-900">{Math.round(progress)}%</span>
+                            </div>
+                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full transition-all duration-500 ${loan.status === 'paid' ? 'bg-emerald-500' : isOverdue ? 'bg-rose-500' : 'bg-slate-900'}`}
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                            <div className="flex justify-between items-center mt-1">
+                              <span className="text-[9px] font-bold text-slate-400 uppercase">Inicio: {loan.startDate}</span>
+                              {loan.dueDate && (
+                                <span className={`text-[9px] font-bold uppercase ${isOverdue ? 'text-rose-500' : 'text-slate-400'}`}>
+                                  Vence: {loan.dueDate}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="text-base font-black text-slate-900">
+                            {loan.currency === 'USD' ? '$' : ''}{remaining.toLocaleString()} {loan.currency === 'VES' ? 'VES' : ''}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            {loan.status === 'paid' ? (
+                              <span className="px-2 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-md flex items-center gap-1">
+                                <CheckCircle2 size={12} /> Pagado
+                              </span>
+                            ) : isOverdue ? (
+                              <span className="px-2 py-1 bg-rose-50 text-rose-500 text-[10px] font-black uppercase tracking-widest rounded-md flex items-center gap-1">
+                                <Clock size={12} /> Vencido
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-md flex items-center gap-1">
+                                <Clock size={12} /> Pendiente
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
 
-                    <div className="mt-8 flex justify-end gap-3">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDelete(loan.id);
-                        }}
-                        className="p-3 text-rose-400 hover:bg-rose-50 rounded-xl transition-colors"
-                        title="Eliminar préstamo"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })
+                      {/* Accordion para detalles y pagos */}
+                      {selectedLoanId === loan.id && (
+                        <tr>
+                          <td colSpan={5} className="p-0 border-b border-slate-100">
+                            <div className="bg-slate-50/50 p-6 animate-in slide-in-from-top-2 duration-300 shadow-inner">
+                              <div className="flex justify-between items-center mb-6">
+                                <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Historial de Pagos</h4>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const amountStr = prompt(`Ingresa el monto del pago para ${loan.borrower} (${loan.currency}):`, remaining.toString());
+                                    if (amountStr) {
+                                      const val = parseFloat(amountStr);
+                                      if (!isNaN(val) && val > 0) handleAddPayment(loan.id, val);
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-slate-900 transition-colors"
+                                >
+                                  <Plus size={14} /> Registrar Pago
+                                </button>
+                              </div>
+
+                              <div className="space-y-3">
+                                {loan.payments.length === 0 ? (
+                                  <p className="text-center py-4 text-slate-400 text-xs font-bold uppercase tracking-widest italic">Sin pagos registrados</p>
+                                ) : (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {loan.payments.map(payment => (
+                                      <div key={payment.id} className="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-6 h-6 bg-emerald-50 text-emerald-500 rounded-lg flex items-center justify-center">
+                                            <ArrowDownLeft size={12} />
+                                          </div>
+                                          <span className="text-xs font-bold text-slate-600">{payment.date}</span>
+                                        </div>
+                                        <span className="text-sm font-black text-slate-900">
+                                          +{loan.currency === 'USD' ? '$' : ''}{payment.amount.toLocaleString()} {loan.currency === 'VES' ? 'VES' : ''}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="mt-6 flex justify-end gap-3">
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete(loan.id);
+                                  }}
+                                  className="p-2 text-rose-400 hover:bg-rose-50 hover:text-rose-600 rounded-xl transition-colors flex items-center gap-2 text-xs font-bold"
+                                  title="Eliminar préstamo"
+                                >
+                                  <Trash2 size={14} /> Eliminar
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

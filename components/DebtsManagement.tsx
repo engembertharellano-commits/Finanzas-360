@@ -194,9 +194,9 @@ export const DebtsManagement: React.FC<DebtsManagementProps> = ({
       </div>
 
       {/* Debts Grid/List */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
         {filteredDebts.length === 0 ? (
-          <div className="col-span-full bg-white border-2 border-dashed border-slate-100 rounded-[3rem] p-20 flex flex-col items-center justify-center text-center">
+          <div className="p-20 flex flex-col items-center justify-center text-center">
             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
               <Banknote className="text-slate-300 w-10 h-10" />
             </div>
@@ -204,149 +204,164 @@ export const DebtsManagement: React.FC<DebtsManagementProps> = ({
             <p className="text-slate-400 max-w-xs font-medium">Registra tus deudas para tener un panorama real de tu situación financiera.</p>
           </div>
         ) : (
-          filteredDebts.map(debt => {
-            const payments = Array.isArray(debt.payments) ? debt.payments : [];
-            const totalPaid = payments.reduce((sum, p) => sum + (p?.amount || 0), 0);
-            const remaining = (debt.amount || 0) - totalPaid;
-            const progress = (totalPaid / debt.amount) * 100;
-            const isOverdue = debt.dueDate && new Date(debt.dueDate) < new Date() && debt.status !== 'paid';
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase tracking-widest text-slate-400 font-black">
+                  <th className="px-6 py-4">Acreedor</th>
+                  <th className="px-6 py-4 text-right">Monto</th>
+                  <th className="px-6 py-4">Progreso / Fechas</th>
+                  <th className="px-6 py-4 text-right">Por pagar</th>
+                  <th className="px-6 py-4 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filteredDebts.map(debt => {
+                  const payments = Array.isArray(debt.payments) ? debt.payments : [];
+                  const totalPaid = payments.reduce((sum, p) => sum + (p?.amount || 0), 0);
+                  const remaining = (debt.amount || 0) - totalPaid;
+                  const progress = (totalPaid / debt.amount) * 100;
+                  const isOverdue = debt.dueDate && new Date(debt.dueDate) < new Date() && debt.status !== 'paid';
 
-            return (
-              <div 
-                key={debt.id}
-                onClick={() => setSelectedDebtId(debt.id === selectedDebtId ? null : debt.id)}
-                className={`
-                  group bg-white rounded-[2.5rem] border transition-all cursor-pointer overflow-hidden
-                  ${selectedDebtId === debt.id ? 'border-rose-500 ring-4 ring-rose-50' : 'border-slate-100 hover:border-rose-200 hover:shadow-xl'}
-                `}
-              >
-                <div className="p-8">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="flex items-center gap-4">
-                      <div className={`
-                        w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl
-                        ${debt.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : isOverdue ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-900'}
-                      `}>
-                        {debt.creditor.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <h3 className="font-black text-slate-900 text-lg leading-tight">{debt.creditor}</h3>
-                        <p className="text-slate-400 text-sm font-bold uppercase tracking-wider">{debt.description}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-black text-slate-900">
-                        {debt.currency === 'USD' ? '$' : ''}{debt.amount.toLocaleString()} {debt.currency === 'VES' ? 'VES' : ''}
-                      </p>
-                      <div className="flex items-center justify-end gap-2 mt-1">
-                        {debt.status === 'paid' ? (
-                          <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-emerald-500">
-                            <CheckCircle2 size={12} /> Liquidada
-                          </span>
-                        ) : isOverdue ? (
-                          <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-rose-500">
-                            <Clock size={12} /> Vencida
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            <Clock size={12} /> Pendiente
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Progreso de pago</span>
-                      <span className="font-black text-slate-900">{Math.round(progress)}%</span>
-                    </div>
-                    <div className="h-3 bg-slate-50 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full transition-all duration-1000 ease-out ${debt.status === 'paid' ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between items-end pt-2">
-                      <div className="flex items-center gap-4">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Desde</span>
-                          <span className="text-sm font-bold text-slate-600">{debt.startDate}</span>
-                        </div>
-                        {debt.dueDate && (
-                          <div className="flex flex-col border-l border-slate-100 pl-4">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Vence el</span>
-                            <span className={`text-sm font-bold ${isOverdue ? 'text-rose-500' : 'text-slate-600'}`}>{debt.dueDate}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Por pagar</span>
-                        <span className="text-xl font-black text-rose-600">
-                          {debt.currency === 'USD' ? '$' : ''}{remaining.toLocaleString()} {debt.currency === 'VES' ? 'VES' : ''}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payments Section */}
-                {selectedDebtId === debt.id && (
-                  <div className="border-t border-slate-50 bg-slate-50/50 p-8 animate-in slide-in-from-top-2 duration-300">
-                    <div className="flex justify-between items-center mb-6">
-                      <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Historial de Pagos</h4>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const amountStr = prompt(`Ingresa el monto a pagar a ${debt.creditor} (${debt.currency}):`, remaining.toString());
-                          if (amountStr) {
-                            const val = parseFloat(amountStr);
-                            if (!isNaN(val) && val > 0) handleAddPayment(debt.id, val);
-                          }
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-rose-500 transition-colors"
+                  return (
+                    <React.Fragment key={debt.id}>
+                      <tr 
+                        onClick={() => setSelectedDebtId(debt.id === selectedDebtId ? null : debt.id)}
+                        className={`hover:bg-slate-50/50 transition-colors cursor-pointer ${selectedDebtId === debt.id ? 'bg-slate-50/80' : ''}`}
                       >
-                        <Plus size={14} /> Registrar Abono
-                      </button>
-                    </div>
-
-                    <div className="space-y-3">
-                      {debt.payments.length === 0 ? (
-                        <p className="text-center py-6 text-slate-400 text-xs font-bold uppercase tracking-widest italic">Sin abonos registrados</p>
-                      ) : (
-                        debt.payments.map(payment => (
-                          <div key={payment.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-rose-50 text-rose-500 rounded-lg flex items-center justify-center">
-                                <ArrowUpFromLine size={16} />
-                              </div>
-                              <span className="text-sm font-bold text-slate-600">{payment.date}</span>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`
+                              w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm
+                              ${debt.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : isOverdue ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-900'}
+                            `}>
+                              {debt.creditor.charAt(0).toUpperCase()}
                             </div>
-                            <span className="font-black text-slate-900">
-                              -{debt.currency === 'USD' ? '$' : ''}{payment.amount.toLocaleString()} {debt.currency === 'VES' ? 'VES' : ''}
-                            </span>
+                            <div className="flex flex-col">
+                              <span className="font-black text-slate-900 text-sm">{debt.creditor}</span>
+                              <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">{debt.description}</span>
+                            </div>
                           </div>
-                        ))
-                      )}
-                    </div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="text-base font-black text-slate-900">
+                            {debt.currency === 'USD' ? '$' : ''}{debt.amount.toLocaleString()} {debt.currency === 'VES' ? 'VES' : ''}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 min-w-[200px]">
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex justify-between items-end">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                {debt.status === 'paid' ? 'Liquidada' : isOverdue ? 'Vencida' : 'Pendiente'}
+                              </span>
+                              <span className="text-xs font-black text-slate-900">{Math.round(progress)}%</span>
+                            </div>
+                            <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full transition-all duration-500 ${debt.status === 'paid' ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                            <div className="flex justify-between items-center mt-1">
+                              <span className="text-[9px] font-bold text-slate-400 uppercase">Inicio: {debt.startDate}</span>
+                              {debt.dueDate && (
+                                <span className={`text-[9px] font-bold uppercase ${isOverdue ? 'text-rose-500' : 'text-slate-400'}`}>
+                                  Vence: {debt.dueDate}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="text-base font-black text-rose-600">
+                            {debt.currency === 'USD' ? '$' : ''}{remaining.toLocaleString()} {debt.currency === 'VES' ? 'VES' : ''}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            {debt.status === 'paid' ? (
+                              <span className="px-2 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-md flex items-center gap-1">
+                                <CheckCircle2 size={12} /> Pagado
+                              </span>
+                            ) : isOverdue ? (
+                              <span className="px-2 py-1 bg-rose-50 text-rose-500 text-[10px] font-black uppercase tracking-widest rounded-md flex items-center gap-1">
+                                <Clock size={12} /> Vencido
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-md flex items-center gap-1">
+                                <Clock size={12} /> Pendiente
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
 
-                    <div className="mt-8 flex justify-end gap-3">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDelete(debt.id);
-                        }}
-                        className="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
-                        title="Eliminar registro de deuda"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })
+                      {/* Accordion para detalles y pagos */}
+                      {selectedDebtId === debt.id && (
+                        <tr>
+                          <td colSpan={5} className="p-0 border-b border-slate-100">
+                            <div className="bg-slate-50/50 p-6 animate-in slide-in-from-top-2 duration-300 shadow-inner">
+                              <div className="flex justify-between items-center mb-6">
+                                <h4 className="font-black text-slate-900 uppercase tracking-widest text-xs">Historial de Pagos</h4>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const amountStr = prompt(`Ingresa el monto a pagar a ${debt.creditor} (${debt.currency}):`, remaining.toString());
+                                    if (amountStr) {
+                                      const val = parseFloat(amountStr);
+                                      if (!isNaN(val) && val > 0) handleAddPayment(debt.id, val);
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-rose-500 transition-colors"
+                                >
+                                  <Plus size={14} /> Registrar Abono
+                                </button>
+                              </div>
+
+                              <div className="space-y-3">
+                                {debt.payments.length === 0 ? (
+                                  <p className="text-center py-4 text-slate-400 text-xs font-bold uppercase tracking-widest italic">Sin abonos registrados</p>
+                                ) : (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {debt.payments.map(payment => (
+                                      <div key={payment.id} className="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center">
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-6 h-6 bg-rose-50 text-rose-500 rounded-lg flex items-center justify-center">
+                                            <ArrowUpFromLine size={12} />
+                                          </div>
+                                          <span className="text-xs font-bold text-slate-600">{payment.date}</span>
+                                        </div>
+                                        <span className="text-sm font-black text-slate-900">
+                                          -{debt.currency === 'USD' ? '$' : ''}{payment.amount.toLocaleString()} {debt.currency === 'VES' ? 'VES' : ''}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="mt-6 flex justify-end gap-3">
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete(debt.id);
+                                  }}
+                                  className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors flex items-center gap-2 text-xs font-bold"
+                                  title="Eliminar registro de deuda"
+                                >
+                                  <Trash2 size={14} /> Eliminar
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

@@ -75,6 +75,7 @@ export const DebtsManagement: React.FC<DebtsManagementProps> = ({
     const dueDate = formData.get('dueDate') as string;
     const interestRate = Number(formData.get('interestRate')) || 0;
     const commission = Number(formData.get('commission')) || 0;
+    const debtType = (formData.get('debtType') as Debt['debtType']) || 'general';
 
     const newDebt: Debt = {
       id: crypto.randomUUID(),
@@ -86,23 +87,26 @@ export const DebtsManagement: React.FC<DebtsManagementProps> = ({
       dueDate: dueDate || undefined,
       status: 'pending',
       description,
-      accountId,
+      accountId: debtType === 'prestamo' ? accountId : undefined,
       commission,
-      payments: []
+      payments: [],
+      debtType
     };
 
     onAdd(newDebt);
 
-    // Create a transaction to reflect the money coming in (amount - commission)
-    onAddTransaction({
-      description: `Deuda con ${creditor}${commission > 0 ? ' (neto de comisión)' : ''}`,
-      amount: amount - commission,
-      type: 'Ingreso',
-      category: 'Deudas',
-      date: new Date().toISOString().split('T')[0],
-      currency,
-      accountId
-    });
+    // Solo generar transacción de ingreso si es un préstamo recibido (dinero entra a cuenta)
+    if (debtType === 'prestamo' && accountId) {
+      onAddTransaction({
+        description: `Préstamo recibido de ${creditor}${commission > 0 ? ' (neto de comisión)' : ''}`,
+        amount: amount - commission,
+        type: 'Ingreso',
+        category: 'Deudas',
+        date: new Date().toISOString().split('T')[0],
+        currency,
+        accountId
+      });
+    }
 
     setIsAddingDebt(false);
   };
@@ -367,124 +371,183 @@ export const DebtsManagement: React.FC<DebtsManagementProps> = ({
 
       {/* Modal Agregar Deuda */}
       {isAddingDebt && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsAddingDebt(false)} />
-          <div className="relative bg-white w-full max-w-xl max-h-[90vh] flex flex-col rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="p-8 md:p-10 overflow-y-auto custom-scrollbar">
-              <div className="flex justify-between items-center mb-10 shrink-0">
-                <div>
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Nueva Deuda</h2>
-                  <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1">Registra dinero que has recibido y debes devolver</p>
-                </div>
-                <button onClick={() => setIsAddingDebt(false)} className="p-3 hover:bg-slate-50 rounded-2xl text-slate-400">
-                  <Plus className="rotate-45" size={24} />
-                </button>
+        <DebtFormModal
+          accounts={accounts}
+          onSubmit={handleCreateDebt}
+          onClose={() => setIsAddingDebt(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+/* ─── Sub-component: Modal de Creación de Deuda ─── */
+const DebtFormModal: React.FC<{
+  accounts: BankAccount[];
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  onClose: () => void;
+}> = ({ accounts, onSubmit, onClose }) => {
+  const [debtType, setDebtType] = useState<'prestamo' | 'credito' | 'plazos' | 'general'>('general');
+
+  const debtTypeLabels: Record<string, { label: string; desc: string }> = {
+    general: { label: 'Deuda General', desc: 'Le debes dinero a alguien por cualquier motivo' },
+    prestamo: { label: 'Préstamo Recibido', desc: 'Recibiste dinero prestado y se deposita en una cuenta' },
+    credito: { label: 'Compra a Crédito', desc: 'Compraste algo a crédito (fiado, tarjeta externa, etc.)' },
+    plazos: { label: 'Compra a Plazos', desc: 'Compraste algo pagándolo en cuotas o mensualidades' }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={onClose} />
+      <div className="relative bg-white w-full max-w-xl max-h-[90vh] flex flex-col rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="p-8 md:p-10 overflow-y-auto custom-scrollbar">
+          <div className="flex justify-between items-center mb-10 shrink-0">
+            <div>
+              <h2 className="text-3xl font-black text-slate-900 tracking-tight">Nueva Deuda</h2>
+              <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1">Registra cualquier obligación financiera</p>
+            </div>
+            <button onClick={onClose} className="p-3 hover:bg-slate-50 rounded-2xl text-slate-400">
+              <Plus className="rotate-45" size={24} />
+            </button>
+          </div>
+
+          <form onSubmit={onSubmit} className="space-y-6">
+            {/* Tipo de Deuda */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Tipo de Deuda</label>
+              <div className="grid grid-cols-2 gap-3">
+                {(Object.entries(debtTypeLabels) as [string, {label: string; desc: string}][]).map(([key, val]) => (
+                  <button
+                    type="button"
+                    key={key}
+                    onClick={() => setDebtType(key as any)}
+                    className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                      debtType === key 
+                        ? 'border-rose-500 bg-rose-50' 
+                        : 'border-slate-100 bg-slate-50 hover:border-slate-200'
+                    }`}
+                  >
+                    <span className={`text-xs font-black block ${debtType === key ? 'text-rose-600' : 'text-slate-700'}`}>{val.label}</span>
+                    <span className="text-[10px] text-slate-400 font-medium">{val.desc}</span>
+                  </button>
+                ))}
+              </div>
+              <input type="hidden" name="debtType" value={debtType} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                  {debtType === 'credito' || debtType === 'plazos' ? 'Vendedor / Tienda' : 'Acreedor (Persona/Entidad)'}
+                </label>
+                <input 
+                  name="creditor" 
+                  required 
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold"
+                  placeholder={debtType === 'credito' || debtType === 'plazos' ? 'Ej: Amazon, Tienda X' : 'Ej: Banco, Juan'}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                  {debtType === 'credito' || debtType === 'plazos' ? 'Monto Total' : 'Monto de la deuda'}
+                </label>
+                <input 
+                  name="amount" 
+                  type="number" 
+                  step="0.01" 
+                  required 
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className={`grid ${debtType === 'prestamo' ? 'grid-cols-3' : 'grid-cols-2'} gap-6`}>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Moneda</label>
+                <select 
+                  name="currency" 
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold appearance-none"
+                >
+                  <option value="USD">Dólares (USD)</option>
+                  <option value="VES">Bolívares (VES)</option>
+                </select>
               </div>
 
-              <form onSubmit={handleCreateDebt} className="space-y-6">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Acreedor (Persona/Entidad)</label>
-                    <input 
-                      name="creditor" 
-                      required 
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold"
-                      placeholder="Ej: Banco o Familiar"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Monto inicial</label>
-                    <input 
-                      name="amount" 
-                      type="number" 
-                      step="0.01" 
-                      required 
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold"
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Moneda</label>
-                    <select 
-                      name="currency" 
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold appearance-none"
-                    >
-                      <option value="USD">Dólares (USD)</option>
-                      <option value="VES">Bolívares (VES)</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Depositar en cuenta</label>
-                    <select 
-                      name="accountId" 
-                      required 
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold appearance-none"
-                    >
-                      {accounts.map(acc => (
-                        <option key={acc.id} value={acc.id}>{acc.name} ({acc.balance.toLocaleString()} {acc.currency})</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Fecha Vencimiento (Opcional)</label>
-                    <input 
-                      name="dueDate" 
-                      type="date" 
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Comisión / Descuento inicial</label>
-                    <input 
-                      name="commission" 
-                      type="number" 
-                      step="0.01" 
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold"
-                      placeholder="0.00"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Tasa Interés Anual % (Opcional)</label>
-                    <input 
-                      name="interestRate" 
-                      type="number" 
-                      step="0.1" 
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold"
-                      placeholder="0.0"
-                    />
-                  </div>
-                </div>
-
+              {debtType === 'prestamo' && (
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Descripción</label>
-                  <textarea 
-                    name="description" 
-                    rows={3} 
-                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold resize-none"
-                    placeholder="¿Para qué recibiste este dinero?"
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Depositar en cuenta</label>
+                  <select 
+                    name="accountId" 
+                    required 
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold appearance-none"
+                  >
+                    {accounts.map(acc => (
+                      <option key={acc.id} value={acc.id}>{acc.name} ({acc.balance.toLocaleString()} {acc.currency})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Fecha Vencimiento (Opc.)</label>
+                <input 
+                  name="dueDate" 
+                  type="date" 
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Tasa Interés Anual % (Opc.)</label>
+                <input 
+                  name="interestRate" 
+                  type="number" 
+                  step="0.1" 
+                  className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold"
+                  placeholder="0.0"
+                />
+              </div>
+              {debtType === 'prestamo' && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Comisión / Descuento</label>
+                  <input 
+                    name="commission" 
+                    type="number" 
+                    step="0.01" 
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold"
+                    placeholder="0.00"
                   />
                 </div>
-
-                <button 
-                  type="submit"
-                  className="w-full py-5 bg-rose-600 text-white rounded-[2rem] font-black text-lg hover:bg-rose-700 transition-all shadow-2xl active:scale-[0.98] mt-4"
-                >
-                  Registrar Deuda
-                </button>
-              </form>
+              )}
             </div>
-          </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Descripción</label>
+              <textarea 
+                name="description" 
+                rows={3} 
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none transition-all font-bold resize-none"
+                placeholder={
+                  debtType === 'credito' ? '¿Qué compraste a crédito?' :
+                  debtType === 'plazos' ? '¿Qué estás pagando en cuotas?' :
+                  debtType === 'prestamo' ? '¿Para qué es el préstamo?' :
+                  '¿Por qué tienes esta deuda?'
+                }
+              />
+            </div>
+
+            <button 
+              type="submit"
+              className="w-full py-5 bg-rose-600 text-white rounded-[2rem] font-black text-lg hover:bg-rose-700 transition-all shadow-2xl active:scale-[0.98] mt-4"
+            >
+              Registrar Deuda
+            </button>
+          </form>
         </div>
-      )}
+      </div>
     </div>
   );
 };

@@ -203,9 +203,11 @@ export interface Debt {
   dueDate?: string;
   status: 'pending' | 'paid' | 'overdue';
   description: string;
-  accountId: string;
+  accountId?: string;
   commission?: number;
   payments: DebtPayment[];
+  /** Tipo de deuda: préstamo recibido, compra a crédito, compra a plazos, deuda general */
+  debtType?: 'prestamo' | 'credito' | 'plazos' | 'general';
 }
 
 export interface WishlistItem {

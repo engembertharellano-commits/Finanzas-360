@@ -34,6 +34,7 @@ export const Portfolio: React.FC<Props> = ({
   const [assigningAccountInv, setAssigningAccountInv] = useState<InvestmentWithSource | null>(null);
   const [movingInv, setMovingInv] = useState<InvestmentWithSource | null>(null);
 
+  const [editingInv, setEditingInv] = useState<Investment | null>(null);
   const [yieldAmount, setYieldAmount] = useState<number>(0);
 
   const [sellUnits, setSellUnits] = useState<number>(0);
@@ -198,6 +199,22 @@ export const Portfolio: React.FC<Props> = ({
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
+
+    if (editingInv) {
+      const updatedInv: Investment = {
+        ...editingInv,
+        ...newInv,
+        name: newInv.name.trim(),
+        ticker: newInv.ticker.trim().toUpperCase(),
+        value: newInv.quantity * (newInv.currentMarketPrice || newInv.buyPrice || newInv.initialInvestment),
+        performance: newInv.buyPrice > 0 ? ((newInv.currentMarketPrice - newInv.buyPrice) / newInv.buyPrice) * 100 : 0,
+        brokerId: accounts.find(a => a.id === newInv.sourceAccountId)?.type === 'Broker' ? newInv.sourceAccountId : undefined
+      };
+      onUpdate(updatedInv);
+      setEditingInv(null);
+      setShowForm(false);
+      return;
+    }
 
     if (!newInv.sourceAccountId) {
       alert('⚠️ Error: Debes seleccionar la cuenta de donde sale el dinero.');
@@ -537,7 +554,25 @@ export const Portfolio: React.FC<Props> = ({
               {updateStatus || 'Actualizar Precios'}
             </button>
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => {
+                setEditingInv(null);
+                setNewInv({
+                  name: '',
+                  ticker: '',
+                  sourceAccountId: '',
+                  initialInvestment: 0,
+                  buyCommission: 0,
+                  quantity: 1,
+                  buyPrice: 0,
+                  currentMarketPrice: 0,
+                  currency: 'USD',
+                  category: 'Acciones / ETFs',
+                  yieldRate: 0,
+                  yieldPeriod: 'Anual',
+                  date: new Date().toISOString().split('T')[0]
+                });
+                setShowForm(true);
+              }}
               className="flex-1 md:flex-none bg-blue-600 text-white px-5 py-2.5 rounded-2xl font-bold hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-100"
             >
               <Plus size={20} /> Nueva Inversión
@@ -550,7 +585,9 @@ export const Portfolio: React.FC<Props> = ({
         <div className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in duration-300">
           <div className="p-8 space-y-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <h3 className="text-2xl font-black text-slate-900">Configurar Inversión</h3>
+               <h3 className="text-2xl font-black text-slate-900">
+                {editingInv ? 'Editar Inversión' : 'Configurar Inversión'}
+              </h3>
               <div className="flex bg-slate-100 p-1 rounded-2xl overflow-x-auto max-w-full">
                 {['Acciones / ETFs', 'Criptomonedas', 'Renta Fija / Préstamos', 'Bienes Raíces', 'Otros'].map(cat => (
                   <button
@@ -653,7 +690,7 @@ export const Portfolio: React.FC<Props> = ({
             <div className="flex gap-4">
               <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-5 rounded-3xl bg-slate-50 text-slate-400 font-black hover:bg-slate-100 transition-all">Cancelar</button>
               <button type="button" onClick={() => handleSubmit()} className="flex-[2] py-5 rounded-3xl bg-blue-600 text-white font-black shadow-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
-                Transferir a Inversión <ChevronRight size={20} />
+                {editingInv ? 'Guardar Cambios' : 'Transferir a Inversión'} <ChevronRight size={20} />
               </button>
             </div>
           </div>
@@ -769,6 +806,31 @@ export const Portfolio: React.FC<Props> = ({
                       className="flex-1 bg-violet-50 text-violet-600 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-violet-100 transition-all"
                     >
                       <Repeat size={14} /> Mover
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setEditingInv(inv);
+                        setNewInv({
+                          name: inv.name,
+                          ticker: inv.ticker || '',
+                          sourceAccountId: inv.sourceAccountId || inv.brokerId || '',
+                          initialInvestment: inv.initialInvestment,
+                          buyCommission: inv.buyCommission || 0,
+                          quantity: inv.quantity,
+                          buyPrice: inv.buyPrice || 0,
+                          currentMarketPrice: inv.currentMarketPrice || inv.buyPrice || 0,
+                          currency: inv.currency,
+                          category: inv.category as InvestmentCategory,
+                          yieldRate: inv.yieldRate || 0,
+                          yieldPeriod: inv.yieldPeriod || 'Anual',
+                          date: inv.date || new Date().toISOString().split('T')[0]
+                        });
+                        setShowForm(true);
+                      }} 
+                      className="p-2.5 text-slate-300 hover:text-blue-500 bg-slate-50 rounded-2xl transition-colors"
+                      title="Editar inversión"
+                    >
+                      <Edit2 size={20} />
                     </button>
                     <button onClick={() => onDelete(inv.id)} className="p-2.5 text-slate-300 hover:text-rose-500 bg-slate-50 rounded-2xl transition-colors"><Trash2 size={20} /></button>
                   </div>

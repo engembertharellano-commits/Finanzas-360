@@ -283,69 +283,17 @@ export const Portfolio: React.FC<Props> = ({
 
     const linkedBrokerId = sourceAcc.type === 'Broker' ? sourceAcc.id : undefined;
 
-    const existingInvestment = findMatchingInvestmentInAccount(
-      newInv.sourceAccountId,
-      {
-        ticker: newInv.ticker,
-        name: safeName,
-        category: newInv.category,
-        currency: newInv.currency
-      }
-    );
+    const invId = crypto.randomUUID();
 
-    if (existingInvestment) {
-      const prevQuantity = Number(existingInvestment.quantity || 0);
-      const prevInvestment = Number(existingInvestment.initialInvestment || 0);
-      const prevCommission = Number(existingInvestment.buyCommission || 0);
-
-      const addedQuantity = Number(newInv.quantity || 0);
-      const addedInvestment = Number(newInv.initialInvestment || 0);
-      const addedCommission = Number(newInv.buyCommission || 0);
-
-      const totalQuantity = prevQuantity + addedQuantity;
-      const totalInvestment = prevInvestment + addedInvestment;
-      const totalCommission = prevCommission + addedCommission;
-
-      const weightedBuyPrice =
-        totalQuantity > 0
-          ? ((prevQuantity * Number(existingInvestment.buyPrice || 0)) + (addedQuantity * Number(newInv.buyPrice || 0))) / totalQuantity
-          : 0;
-
-      const latestMarketPrice = Number(newInv.currentMarketPrice || newInv.buyPrice || existingInvestment.currentMarketPrice || weightedBuyPrice || 0);
-      const updatedValue = totalQuantity * latestMarketPrice;
-      const updatedPerformance = weightedBuyPrice > 0 ? ((latestMarketPrice - weightedBuyPrice) / weightedBuyPrice) * 100 : 0;
-
-      onUpdate({
-        ...existingInvestment,
-        name: safeName,
-        ticker: newInv.ticker.trim().toUpperCase(),
-        sourceAccountId: newInv.sourceAccountId,
-        brokerId: linkedBrokerId,
-        quantity: totalQuantity,
-        initialInvestment: totalInvestment,
-        buyCommission: totalCommission,
-        buyPrice: weightedBuyPrice,
-        currentMarketPrice: latestMarketPrice,
-        value: updatedValue,
-        performance: updatedPerformance,
-        category: newInv.category,
-        yieldRate: newInv.yieldRate || existingInvestment.yieldRate || 0,
-        yieldPeriod: newInv.yieldPeriod || existingInvestment.yieldPeriod || 'Anual',
-        date: newInv.date
-      } as Investment);
-    } else {
-      const invId = crypto.randomUUID();
-
-      onAdd({
-        ...newInv,
-        id: invId,
-        sourceAccountId: newInv.sourceAccountId,
-        value: newInv.quantity * (newInv.currentMarketPrice || newInv.buyPrice || newInv.initialInvestment),
-        performance: 0,
-        brokerId: linkedBrokerId,
-        category: newInv.category
-      } as Investment);
-    }
+    onAdd({
+      ...newInv,
+      id: invId,
+      sourceAccountId: newInv.sourceAccountId,
+      value: newInv.quantity * (newInv.currentMarketPrice || newInv.buyPrice || newInv.initialInvestment),
+      performance: 0,
+      brokerId: linkedBrokerId,
+      category: newInv.category
+    } as Investment);
 
     onAddTransaction({
       description: `Inversión: ${safeName}`,
@@ -356,7 +304,7 @@ export const Portfolio: React.FC<Props> = ({
       date: newInv.date,
       currency: newInv.currency,
       accountId: newInv.sourceAccountId,
-      relatedInvestmentId: existingInvestment?.id
+      relatedInvestmentId: invId
     });
 
     setShowForm(false);

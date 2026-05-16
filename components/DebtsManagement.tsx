@@ -354,9 +354,9 @@ export const DebtsManagement: React.FC<DebtsManagementProps> = ({
       {isAddingDebt && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsAddingDebt(false)} />
-          <div className="relative bg-white w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-            <div className="p-10">
-              <div className="flex justify-between items-center mb-10">
+          <div className="relative bg-white w-full max-w-xl max-h-[90vh] flex flex-col rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-8 md:p-10 overflow-y-auto custom-scrollbar">
+              <div className="flex justify-between items-center mb-10 shrink-0">
                 <div>
                   <h2 className="text-3xl font-black text-slate-900 tracking-tight">Nueva Deuda</h2>
                   <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-1">Registra dinero que has recibido y debes devolver</p>

@@ -206,3 +206,16 @@ export interface Debt {
   commission?: number;
   payments: DebtPayment[];
 }
+
+export interface WishlistItem {
+  id: string;
+  description: string;
+  amount: number;
+  currency: Currency;
+  priority: 'low' | 'medium' | 'high';
+  estimatedDate?: string;
+  category: string;
+  savedAmount: number;
+  url?: string;
+  status: 'pending' | 'bought' | 'cancelled';
+}

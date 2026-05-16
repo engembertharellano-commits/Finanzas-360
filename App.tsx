@@ -17,7 +17,8 @@ import {
   Target,
   BarChart3,
   HandCoins,
-  Banknote
+  Banknote,
+  ShoppingBag
 } from 'lucide-react';
 
 import {
@@ -28,6 +29,7 @@ import {
   User,
   Loan,
   Debt,
+  WishlistItem,
   DEFAULT_EXPENSE_CATEGORIES,
   DEFAULT_INCOME_CATEGORIES
 } from './types';
@@ -50,6 +52,7 @@ import IngresosModule from './components/IngresosModule';
 import { FinancialReport } from './components/FinancialReport';
 import { LoansManagement } from './components/LoansManagement';
 import { DebtsManagement } from './components/DebtsManagement';
+import { WishlistModule } from './components/WishlistModule';
 
 type View =
   | 'dashboard'
@@ -65,7 +68,8 @@ type View =
   | 'planning'
   | 'report'
   | 'loans'
-  | 'debts'; // NUEVA VISTA
+  | 'debts'
+  | 'wishlist';
 
 type PersistedFinanceData = {
   accounts: BankAccount[];
@@ -77,6 +81,7 @@ type PersistedFinanceData = {
   financialPlans?: any[];
   loans?: Loan[];
   debts?: Debt[];
+  wishlist?: WishlistItem[];
 };
 
 type CloudStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -90,7 +95,8 @@ const EMPTY_DATA: PersistedFinanceData = {
   incomeCategories: DEFAULT_INCOME_CATEGORIES,
   financialPlans: [],
   loans: [],
-  debts: []
+  debts: [],
+  wishlist: []
 };
 
 const USER_REGISTRY_KEYS = ['f360_users', 'f360_users_list', 'finanza360_users', 'users'];
@@ -119,7 +125,8 @@ const data = input as Partial<PersistedFinanceData> | null;
       : DEFAULT_INCOME_CATEGORIES,
     financialPlans: Array.isArray(data?.financialPlans) ? data.financialPlans : [],
     loans: Array.isArray(data?.loans) ? data.loans : [],
-    debts: Array.isArray(data?.debts) ? data.debts : []
+    debts: Array.isArray(data?.debts) ? data.debts : [],
+    wishlist: Array.isArray(data?.wishlist) ? data.wishlist : []
   };
 };
 
@@ -265,6 +272,7 @@ const App: React.FC = () => {
   const [financialPlans, setFinancialPlans] = useState<any[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
+  const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
 
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const [isDataReady, setIsDataReady] = useState(false);
@@ -298,6 +306,7 @@ const App: React.FC = () => {
     setFinancialPlans(clean.financialPlans || []);
     setLoans(clean.loans || []);
     setDebts(clean.debts || []);
+    setWishlist(clean.wishlist || []);
   }, []);
 
   const fetchRate = useCallback(async () => {
@@ -370,6 +379,7 @@ const App: React.FC = () => {
     setFinancialPlans([]);
     setLoans([]);
     setDebts([]);
+    setWishlist([]);
 
     setIsDataReady(false);
     setCloudStatus('idle');
@@ -477,7 +487,8 @@ const App: React.FC = () => {
       incomeCategories,
       financialPlans,
       loans,
-      debts
+      debts,
+      wishlist
     };
 
     const serialized = JSON.stringify(data);
@@ -905,6 +916,15 @@ const App: React.FC = () => {
               label="Deudas"
             />
             <NavItem
+              active={activeView === 'wishlist'}
+              onClick={() => {
+                setActiveView('wishlist');
+                setIsMobileMenuOpen(false);
+              }}
+              icon={<ShoppingBag size={20} />}
+              label="Lista de Deseos"
+            />
+            <NavItem
               active={activeView === 'budget'}
               onClick={() => {
                 setActiveView('budget');
@@ -1090,6 +1110,22 @@ const App: React.FC = () => {
                 onUpdate={handleUpdateDebt}
                 onDelete={handleDeleteDebt}
                 onAddTransaction={handleAddTransaction}
+                exchangeRate={exchangeRate}
+              />
+            )}
+            {activeView === 'wishlist' && (
+              <WishlistModule 
+                items={wishlist}
+                onAdd={(item) => setWishlist(prev => [...prev, item])}
+                onUpdate={(item) => setWishlist(prev => prev.map(i => i.id === item.id ? item : i))}
+                onDelete={(id) => {
+                  setConfirmModal({
+                    isOpen: true,
+                    title: 'Eliminar Deseo',
+                    message: '¿Estás seguro de eliminar este elemento de tu lista?',
+                    onConfirm: () => setWishlist(prev => prev.filter(i => i.id !== id))
+                  });
+                }}
                 exchangeRate={exchangeRate}
               />
             )}
